@@ -19,3 +19,9 @@ If we have a target AES key `k` that we want to encrypt, then we can store the k
 It is a central problem in AttributeBasedCryptography to ensure that the attributes all come from the SAME user.  That way, an adult from UK cannot colude with a non-adult citizen of US to produce a key.  This means that we have to defend against legitimate users abusing intermediate steps of computation to elevate their access.
 
 ![cpabe](cpabe-pairing.png)
+
+> Note!  I have not yet solved the problem with this.  The product rule over un-watermarked attributes creates a problem.  `f` limits collusion to individual files, but I have not yet found a way to decisively force all combined attributes to come from the same user.  I have read that it is possible to do this, and that it requires curves like this; so I am using this repo to get to know pairings well enough to eventually figure it out.
+
+Combinations of attributes would create a user profile with O(2^n) items if AND had to be pre-computed for every case; in which case paring would be unnecessary.  You could do all of this with simple SHA hashing.
+
+A solution to this problem that is kind of impractical, but would solve it would be that the user has to have the CA explicitly bind together (f,u) to keep the user from figuring out the value of u or 1/u, or f, or 1/f.  It is trivial to calculate the inverse of an integer in this group.  
