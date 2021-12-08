@@ -6,10 +6,15 @@ This is an attempt to solve the core problem of attribute based encryption, wher
 For example, imagine that we have a complete language for and and or combinations....
 
 ```
-cat resume.pdf | go run cpabe.go '(and age:adult (or citizen:US citizen:NL))'
+# encrypt the file TO a boolean threshold
+cat resume.pdf | go run cpabe.go -encryptTo '(and age:adult (or citizen:US citizen:NL))' > resume.pdf.encrypted
+
+# decrypt the file WITH a set of attested attributes
+cat resume.pdf.encrypted | go run cpabe.go -decryptFrom 'age:adult citizen:US'
 ```
 
-We can easily transform this into two cases that can possibly match
+
+This is a form of user-controlled DRM to have a key derivation function that doesn't require that a file is encrypted to any individual.  Instead of storing the key literally in some encrypted form; a key-derivation data structure is stored.  Users have a set of attested attributes that function like a certificate.  The certificate need not have any Personlly Identifying Information in them as well.  We can easily transform this into two cases that can possibly match
 
 - (and age:adult citizen:US)
 - (and age:adult citizen:NL)
