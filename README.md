@@ -18,4 +18,4 @@ If we have a target AES key `k` that we want to encrypt, then we can store the k
 
 It is a central problem in AttributeBasedCryptography to ensure that the attributes all come from the SAME user.  That way, an adult from UK cannot colude with a non-adult citizen of US to produce a key.  This means that we have to defend against legitimate users abusing intermediate steps of computation to elevate their access.
 
-![cpabe](cpabe-pairing.jpg)
+![cpabe](cpabe-pairing.png)
