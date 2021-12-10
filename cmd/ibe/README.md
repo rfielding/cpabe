@@ -22,7 +22,7 @@ Create key material (ie: for an AES key) for anyone that has been issued the att
 ./ibe lock trusted rob.fielding@gmail.com
 ```
 
-In order to actually encrypt a file, we need to use it before we lose the value k that was used for the nonce.  So, a temp file `trusted/rob.fielding@gmail.com.lock-secret` exists so that a ciphertext can be created with the key, and the `FilePublic` associated with the ciphertext.  Beware that the way we name files, we clobber re-created attributes with new `k` values.  You just need to make sure that the FilePublic matches up with the SecretKey that you actually encrypt the file with; before you delete `rusted/rob.fielding@gmail.com.lock-secret` (after you generate your ciphertext with it).
+In order to actually encrypt a file, we need to use it before we lose the value k that was used for the nonce.  So, a temp file `trusted/rob.fielding@gmail.com.lock-secret` exists so that a ciphertext can be created with the key, and the `FilePublic` associated with the ciphertext.  Beware that the way we name files, we clobber re-created attributes with new `k` values.  You just need to make sure that the FilePublic matches up with the SecretKey that you actually encrypt the file with; before you delete `trusted/rob.fielding@gmail.com.lock-secret` (after you generate your ciphertext with it).
 
 The owner of attribute `rob.fielding@gmail.com` can combine the ciphertext's FilePublic with AttrSecret to recover the AES key that was used to encrypt the file.
 
