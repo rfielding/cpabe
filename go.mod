@@ -1,5 +1,5 @@
 module github.com/rfielding/cpabe
 
-go 1.17
+go 1.16
 
-require golang.org/x/crypto v0.0.0-20211202192323-5770296d904e
+require golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b
