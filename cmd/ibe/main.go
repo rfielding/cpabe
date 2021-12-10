@@ -39,21 +39,21 @@ type Output struct {
 	Kind       string `json:"Kind,omitempty"`       // file extension
 	CAName     string `json:"CAName,omitempty"`     // the name of the CA corresopnding to CAPub
 	CASecret   string `json:"CASecret,omitempty"`   // s
-	CAPub      string `json:"CAPub,omitempty"`      // s G1
+	CAPub_sG1      string `json:"CAPub,omitempty"`      // s G1
 	AttrName   string `json:"AttrName,omitempty"`   // actual public key attribute
-	AttrSecret string `json:"AttrSecret,omitempty"` // s H(a_i) G2
-	FileSecret string `json:"FileSecret,omitempty"` // k H(a_i) G2.  k is never saved anywhere
-	FilePublic string `json:"FilePublic,omitempty"` // k G1ß
-	SecretKey  string `json:"SecretKey,omitemty"`   // the actual secret, created from pairing
+	AttrSecret_shG2 string `json:"AttrSecret,omitempty"` // s H(a_i) G2
+	FileSecret_khG2 string `json:"FileSecret,omitempty"` // k H(a_i) G2.  k is never saved anywhere
+	FilePublic_kG1 string `json:"FilePublic,omitempty"` // k G1
+	SecretKeyGT  string `json:"SecretKey,omitempty"`  // the actual secret, created from pairing
 }
 
-func (o *Output) GetCASecret() *big.Int {
+func (o *Output) GetCASecret_s() *big.Int {
 	return HashToBigInt(o.CASecret)
 }
 
-func (o *Output) GetCAPub() *bn256.G1 {
-	if len(o.CAPub) != 0 {
-		b, err := hex.DecodeString(o.CAPub)
+func (o *Output) GetCAPub_sG1() *bn256.G1 {
+	if len(o.CAPub_sG1) != 0 {
+		b, err := hex.DecodeString(o.CAPub_sG1)
 		if err != nil {
 			panic(err)
 		}
@@ -63,7 +63,8 @@ func (o *Output) GetCAPub() *bn256.G1 {
 		}
 		return v
 	}
-	return new(bn256.G1).ScalarBaseMult(o.GetCASecret())
+	s := o.GetCASecret_s()
+	return new(bn256.G1).ScalarBaseMult(s)
 }
 
 func ReadOutput(name string, kind string) *Output {
@@ -101,78 +102,122 @@ func WriteOutput(o *Output, name string) {
 }
 
 func main() {
-	if len(os.Args) > 1 {
-		if os.Args[1] == "ibecapub" && len(os.Args) == 3 {
-			// We need the name to find the file
-			caname := os.Args[2]
-			// Read in a secret to generate the public key, or issue attribues
-			casecret := ReadOutput(caname, "ibecasecret")
-			s := casecret.GetCASecret()
-			sG1 := new(bn256.G1).ScalarBaseMult(s)
-			WriteOutput(
-				&Output{
-					Kind:   "ibecapub",
-					CAPub:  hex.EncodeToString(sG1.Marshal()),
-					CAName: caname,
-				},
-				caname,
-			)
-			return
+	if os.Args[1] == "ca" && len(os.Args) == 4 {
+		// Make the directory of CA info
+		caname := os.Args[2]
+		os.MkdirAll(caname, 0700)
+		casecret := &Output{
+			Kind:     "ca-secret",
+			CAName:   caname, // a directory of stuff, where this file is ./root.ibcasecret
+			CASecret: os.Args[3],
 		}
+		WriteOutput(casecret, caname+"/root")
 
-		if os.Args[1] == "ibeissue" && len(os.Args) == 4 {
-			caname := os.Args[2]
-			attr := os.Args[3]
-			casecret := ReadOutput(caname, "ibecasecret")
-			s := casecret.GetCASecret()
-			shG2 := new(bn256.G2).ScalarBaseMult(s)
-			shG2 = shG2.ScalarBaseMult(HashToBigInt(attr))
-			WriteOutput(
-				&Output{
-					Kind:       "ibeissue",
-					CAPub:      hex.EncodeToString(casecret.GetCAPub().Marshal()),
-					AttrSecret: hex.EncodeToString(shG2.Marshal()),
-					CAName:     casecret.CAName,
-				},
-				attr,
-			)
-			return
-		}
-
-		if os.Args[1] == "ibelock" && len(os.Args) == 4 {
-			caname := os.Args[2]
-			attr := os.Args[3]
-			k, _ := rand.Int(rand.Reader, bn256.Order)
-			hattr := HashToBigInt(attr)
-			khG2 := new(bn256.G2).ScalarBaseMult(hattr)
-			khG2 = khG2.ScalarBaseMult(k)
-			capub := ReadOutput(caname, "ibecapub")
-			kG1 := new(bn256.G1).ScalarBaseMult(k)
-			keyGT := bn256.Pair(capub.GetCAPub(), khG2)
-			WriteOutput(
-				&Output{
-					Kind:       "ibelockpriv",
-					CAPub:      capub.CAPub,
-					FileSecret: hex.EncodeToString(khG2.Marshal()),
-					FilePublic: hex.EncodeToString(kG1.Marshal()),
-					AttrName:   attr,
-					SecretKey:  hex.EncodeToString(keyGT.Marshal()),
-				},
-				attr,
-			)
-			WriteOutput(
-				&Output{
-					Kind:       "ibelockpub",
-					CAPub:      capub.CAPub,
-					FilePublic: hex.EncodeToString(kG1.Marshal()),
-					AttrName:   attr,
-				},
-				attr,
-			)
-			return
-		}
+		// We need the name to find the file
+		// Read in a secret to generate the public key, or issue attribues
+		s := casecret.GetCASecret_s()
+		sG1 := new(bn256.G1).ScalarBaseMult(s)
+		WriteOutput(
+			&Output{
+				Kind:   "ca",
+				CAPub_sG1:  hex.EncodeToString(sG1.Marshal()),
+				CAName: caname,
+			},
+			caname+"/root",
+		)
+		return
 	}
-	fmt.Printf("usage: ibe ibecapub ${caName} # generate a CA pub key caname.pub from a given caname.ibecasecret")
-	fmt.Printf("usage: ibe ibecaissue ${caName} ${attr} # creates ${attr}.ibecaissue")
-	fmt.Printf("usage: ibe ibelock ${caName} ${attr} # creates ${attr}.ibelockpub and ${attr}.ibelockprivate")
+
+	if os.Args[1] == "issue" && len(os.Args) == 4 {
+		caname := os.Args[2]
+		attr := os.Args[3]
+		casecret := ReadOutput(caname+"/root", "ca-secret")
+		hattr := HashToBigInt(attr)
+		s := casecret.GetCASecret_s()
+		sh := new(big.Int).Mul(s,hattr)
+		shG2 := new(bn256.G2).ScalarBaseMult(sh)
+		WriteOutput(
+			&Output{
+				Kind:       "issue",
+				CAPub_sG1:      hex.EncodeToString(casecret.GetCAPub_sG1().Marshal()),
+				AttrSecret_shG2: hex.EncodeToString(shG2.Marshal()),
+				AttrName: attr,
+				CAName:     casecret.CAName,
+			},
+			caname+"/"+attr,
+		)
+		return
+	}
+
+	if os.Args[1] == "lock" && len(os.Args) == 4 {
+		caname := os.Args[2]
+		attr := os.Args[3]
+		k, _ := rand.Int(rand.Reader, bn256.Order)
+//		k := big.Int(1)
+		hattr := HashToBigInt(attr)
+		hk := new(big.Int).Mul(k,hattr)
+		khG2 := new(bn256.G2).ScalarBaseMult(hk)
+		sG1 := ReadOutput(caname+"/root", "ca")
+		kG1 := new(bn256.G1).ScalarBaseMult(k)
+		keyGT := bn256.Pair(sG1.GetCAPub_sG1(), khG2)
+		fpub_kG1 := hex.EncodeToString(kG1.Marshal())
+		WriteOutput(
+			&Output{
+				Kind:       "lock-secret",
+				CAPub_sG1:      sG1.CAPub_sG1,
+				FileSecret_khG2: hex.EncodeToString(khG2.Marshal()),
+				FilePublic_kG1: fpub_kG1,
+				AttrName:   attr,
+				SecretKeyGT:  hex.EncodeToString(keyGT.Marshal()),
+			},
+			caname+"/"+attr,
+		)
+		WriteOutput(
+			&Output{
+				Kind:       "lock",
+				CAPub_sG1:      sG1.CAPub_sG1,
+				FilePublic_kG1: fpub_kG1,
+				AttrName:   attr,
+			},
+			caname+"/"+attr,
+		)
+		return
+	}
+
+	if os.Args[1] == "unlock" && len(os.Args) == 4 {
+		caname := os.Args[2]
+		attr := os.Args[3]
+		lockpub := ReadOutput(caname+"/"+attr, "lock")
+		attrpriv := ReadOutput(caname+"/"+attr, "issue")
+		kG1bytes, err := hex.DecodeString(lockpub.FilePublic_kG1)
+		if err != nil {
+			panic(err)
+		}
+		kG1, ok := new(bn256.G1).Unmarshal(kG1bytes)
+		if !ok {
+			panic(fmt.Sprintf("unable to unmarshal G1 group for public key of file"))
+		}
+		shG2bytes, err := hex.DecodeString(attrpriv.AttrSecret_shG2)
+		if err != nil {
+			panic(err)
+		}
+		shG2, ok := new(bn256.G2).Unmarshal(shG2bytes)
+		if !ok {
+			panic(fmt.Sprintf("Unable to unmarshal G2 group for private key of attribute"))
+		}
+		keyGT := bn256.Pair(kG1, shG2)
+		WriteOutput(
+			&Output{
+				Kind:      "unlock-secret",
+				AttrName:  attr,
+				SecretKeyGT: hex.EncodeToString(keyGT.Marshal()),
+			},
+			caname+"/"+attr,
+		)
+		return
+	}
+	fmt.Printf("usage: ibe ca ${caName} # generate a CA pub key caname.pub from a given caname.ibecasecret")
+	fmt.Printf("usage: ibe issue ${caName} ${attr} # creates ${attr}.ibecaissue")
+	fmt.Printf("usage: ibe lock ${caName} ${attr} # creates ${attr}.ibelockpub and ${attr}.ibelockprivate")
+	fmt.Printf("usage: ibe unlock ${caName} ${attr} # creates ${attr}.ibelockpub and ${attr}.ibelockprivate")
 }
