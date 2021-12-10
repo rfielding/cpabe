@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	//"strings"
-	//"crypto/rand"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -25,13 +25,26 @@ func HashGT(p *bn256.GT) []byte {
 	return h[:]
 }
 
+// we rely on key generation as:
+// the ca calculates all: (s H(a_i)) values for users
+// the ca public key is: (s G1)
+// the file key is (k G1)
+//   e( k G1, s H(a_i) G2)    // how recipient, that knows k, calculates key
+// = e( s G1, k H(a_i) G2)    // how sender calculates key
+// = e(G1, H(a_i) G2)^{sk}    // both are same as this
+//
+// so: sender pairs (CAPub, FileSecret)
+//     receiver pairs (FilePublic, AttrSecret)
 type Output struct {
-	Kind     string `json:"Kind,omitempty"`
-	CASecret string `json:"CASecret,omitempty"`
-	CAName string `json:"CAName,omitempty"`
-	CAPub    string `json:"CAPub,omitempty"`
-	AttrName string `json:"AttrName,omitempty"`
-	Attr     string `json:"Attr,omitempty"`
+	Kind       string `json:"Kind,omitempty"`       // file extension
+	CAName     string `json:"CAName,omitempty"`     // the name of the CA corresopnding to CAPub
+	CASecret   string `json:"CASecret,omitempty"`   // s
+	CAPub      string `json:"CAPub,omitempty"`      // s G1
+	AttrName   string `json:"AttrName,omitempty"`   // actual public key attribute
+	AttrSecret string `json:"AttrSecret,omitempty"` // s H(a_i) G2
+	FileSecret string `json:"FileSecret,omitempty"` // k H(a_i) G2.  k is never saved anywhere
+	FilePublic string `json:"FilePublic,omitempty"` // k G1ß
+	SecretKey  string `json:"SecretKey,omitemty"`   // the actual secret, created from pairing
 }
 
 func (o *Output) GetCASecret() *big.Int {
@@ -98,8 +111,8 @@ func main() {
 			sG1 := new(bn256.G1).ScalarBaseMult(s)
 			WriteOutput(
 				&Output{
-					Kind:  "ibecapub",
-					CAPub: hex.EncodeToString(sG1.Marshal()),
+					Kind:   "ibecapub",
+					CAPub:  hex.EncodeToString(sG1.Marshal()),
 					CAName: caname,
 				},
 				caname,
@@ -110,22 +123,56 @@ func main() {
 		if os.Args[1] == "ibeissue" && len(os.Args) == 4 {
 			caname := os.Args[2]
 			attr := os.Args[3]
-			casecret := ReadOutput(ca, "ibecasecret")
+			casecret := ReadOutput(caname, "ibecasecret")
 			s := casecret.GetCASecret()
 			shG2 := new(bn256.G2).ScalarBaseMult(s)
 			shG2 = shG2.ScalarBaseMult(HashToBigInt(attr))
 			WriteOutput(
 				&Output{
-					Kind:  "ibeissue",
-					CAPub: hex.EncodeToString(casecret.GetCAPub().Marshal()),
-					Attr:  hex.EncodeToString(shG2.Marshal()),
-					CAName: casecret.CAName,
+					Kind:       "ibeissue",
+					CAPub:      hex.EncodeToString(casecret.GetCAPub().Marshal()),
+					AttrSecret: hex.EncodeToString(shG2.Marshal()),
+					CAName:     casecret.CAName,
+				},
+				attr,
+			)
+			return
+		}
+
+		if os.Args[1] == "ibelock" && len(os.Args) == 4 {
+			caname := os.Args[2]
+			attr := os.Args[3]
+			k, _ := rand.Int(rand.Reader, bn256.Order)
+			hattr := HashToBigInt(attr)
+			khG2 := new(bn256.G2).ScalarBaseMult(hattr)
+			khG2 = khG2.ScalarBaseMult(k)
+			capub := ReadOutput(caname, "ibecapub")
+			kG1 := new(bn256.G1).ScalarBaseMult(k)
+			keyGT := bn256.Pair(capub.GetCAPub(), khG2)
+			WriteOutput(
+				&Output{
+					Kind:       "ibelockpriv",
+					CAPub:      capub.CAPub,
+					FileSecret: hex.EncodeToString(khG2.Marshal()),
+					FilePublic: hex.EncodeToString(kG1.Marshal()),
+					AttrName:   attr,
+					SecretKey:  hex.EncodeToString(keyGT.Marshal()),
+				},
+				attr,
+			)
+			WriteOutput(
+				&Output{
+					Kind:       "ibelockpub",
+					CAPub:      capub.CAPub,
+					FilePublic: hex.EncodeToString(kG1.Marshal()),
+					AttrName:   attr,
 				},
 				attr,
 			)
 			return
 		}
 	}
-	fmt.Printf("usage: ibe capub ${caName} # generate a CA pub key caname.pub from a given caname.casecret")
-	fmt.Printf("usage: ibe caissue ${caName} ${attr} # creates ${addr}.caissue")
+	fmt.Printf("usage: ibe ibecapub ${caName} # generate a CA pub key caname.pub from a given caname.ibecasecret")
+	fmt.Printf("usage: ibe ibecaissue ${caName} ${attr} # creates ${attr}.ibecaissue")
+	fmt.Printf("usage: ibe ibelock ${caName} ${attr} # creates ${attr}.ibelockpub and ${attr}.ibelockprivate")
 }
