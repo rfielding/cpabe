@@ -138,7 +138,7 @@ func main() {
 		shG2 := new(bn256.G2).ScalarBaseMult(sh)
 		WriteOutput(
 			&Output{
-				Kind:       "issue",
+				Kind:       "issue-private",
 				CAPub_sG1:      hex.EncodeToString(casecret.GetCAPub_sG1().Marshal()),
 				AttrSecret_shG2: hex.EncodeToString(shG2.Marshal()),
 				AttrName: attr,
@@ -188,7 +188,7 @@ func main() {
 		caname := os.Args[2]
 		attr := os.Args[3]
 		lockpub := ReadOutput(caname+"/"+attr, "lock")
-		attrpriv := ReadOutput(caname+"/"+attr, "issue")
+		attrpriv := ReadOutput(caname+"/"+attr, "issue-private")
 		kG1bytes, err := hex.DecodeString(lockpub.FilePublic_kG1)
 		if err != nil {
 			panic(err)

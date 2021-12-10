@@ -42,12 +42,12 @@ Here is what a run looks like:
 
 wrote: trusted/root.ca-secret
 	wrote: trusted/root.ca
-	wrote: trusted/rob.fielding@gmail.com.issue
+	wrote: trusted/rob.fielding@gmail.com.issue-private
 	wrote: trusted/rob.fielding@gmail.com.lock-secret
 	wrote: trusted/rob.fielding@gmail.com.lock
 	wrote: trusted/rob.fielding@gmail.com.unlock-secret
 	{
-  "Kind": "issue",
+  "Kind": "issue-private",
   "CAName": "trusted",
   "CAPub": "2b2b66d95a917d63e34093970ae59f32ef8781783064e0ef82f5199135ac044e855e5bf5c7885a195d37b7490960af7dfee68a59f472be17459a42d4703febba",
   "AttrName": "rob.fielding@gmail.com",
