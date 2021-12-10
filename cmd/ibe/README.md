@@ -1,5 +1,7 @@
 # Identity Based Encryption:
 
+![ibe.png](ibe.png)
+
 Create a directory called `trusted` with public key `trusted/root.ca` written into it.
 This is the public key file for the cert authority. It is the only required publicv key
 in the system.
