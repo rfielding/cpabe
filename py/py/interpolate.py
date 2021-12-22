@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
+from time import time
 import hashlib
-# Use a simple finite prime group to test this
 
 
 
@@ -80,11 +80,13 @@ class FiniteCyclicGroup:
     def pow(self,a,b):
         return (a ** b) % self.N
     def Hs(self,s):
-        return int.from_bytes(hashlib.sha256(s).digest(),'big') % self.N
-    def Hp(self,s):
-        h1 = self.Hs((s+"X").encode())
-        h2 = self.Hs((s+"Y").encode())
+        return int.from_bytes(hashlib.sha256(s.encode()).digest(),'big') % self.N
+    def Hpn(self,s,n):
+        h1 = G.mul(n,self.Hs((s+"X")))
+        h2 = self.Hs((s+"Y"))
         return [h1,h2]
+    def Hp(self,s):
+        return self.Hpn(s,1)
 
 G = FiniteCyclicGroup(7919)
 
@@ -125,7 +127,7 @@ def CalcPub(pts):
 # be safe to publish, so should contain no secrets
 class Padlock:
     # Gives a list of all the ways that the lock is satisfied
-    def __init__(self,T,K,tree):
+    def __init__(self,S,T,K,tree):
         self.K = K
         # compile the tree to CNF and convert it to cases
         cnft = cnfTree(tree)
@@ -145,6 +147,8 @@ class Padlock:
                 CreatePadlockCase(T,pts)
             ])
     def Unlock(self,cert):
+        # a multiplier for x axis of points to enforce consistent user attrs
+        pk = cert["pk"]
         # cases are of the form: [["A","B"],AB]
         for acase in self.Cases:
             satisfied = True
@@ -152,7 +156,7 @@ class Padlock:
                 if not attrName in cert:
                     satisfied = False
             if satisfied:
-                privPoints = [self.K]
+                privPoints = [[self.K[0],self.K[1]]]
                 for attrName in acase[0]:
                     privPoints.append(cert[attrName])
                 priv = CalcKey(privPoints)
@@ -182,33 +186,55 @@ def UnlockPadlock(v,priv):
         total = G.add(total, G.mul(pub[j],priv[j]))
     return total
 
-
-# Some attributes that we want to decrypt to
-aUK = G.Hp("cit:UK")
-aUS = G.Hp("cit:US")
-aNL = G.Hp("cit:NL")
-aAD = G.Hp("age:adult")
-aDR = G.Hp("age:drive")
-
+def Issue(S,attrs):
+    # TODO: an actual JWT with a signature, and a public key so that it can be challenged
+    pk = G.Hs(attrs["id"])
+    attrs["pk"] = pk
+    attrs["id:%s" % attrs["id"]] = "?"
+    attrs["exp"] = round(time())
+    for a in attrs:
+        semi = a.find(":")
+        if semi > 0:
+            k = a[0:semi]
+            v = a[semi+1:]
+            attrs[a] = G.Hp(a)
+    return attrs
+         
 # The target key may be an existing key for a file
 # K acts as a nonce for the curves
 T = G.Hp("TheBigSecretLock")[0]
 K = G.Hp("RandomGibberJabber")
 
+# Some certificates issued by CA
+CASecret = 432
+
 # Yes, we actually compile arbitrary and/or exprs to CNF for you
-p = Padlock(G.Hp("oldExistingKey")[0],G.Hp("2022-12-31:01:03:32"),[ 
+p = Padlock(CASecret,G.Hp("oldExistingKey")[0],G.Hp("2022-12-31:01:03:32"),[ 
   "and", 
   ["or","cit:NL","cit:US"], 
   "age:adult" 
 ])
 
-userAlice = { "cit:US":aUS, "age:drive": aDR, "age:adult": aAD }
-userBob = {"cit":aUS}
-userEve = {"cit:NL":aNL, "age:drive":aDR}
+
+userAlice = Issue(CASecret,{
+  "id": "Alice", 
+  "cit:US": "?",
+  "age:drive": "?",
+  "age:adult": "?"
+})
+userBob = Issue(CASecret,{
+  "id": "Bob", 
+  "cit:US": "?"
+})
+userEve = Issue(CASecret,{
+  "id": "Eve", 
+  "cit:NL": "?",
+  "age:drive": "?",
+  "age:adult": "?"
+})
 
 print("Alice: %s" % p.Unlock(userAlice))
 print("Bob: %s" % p.Unlock(userBob))
 print("Eve: %s" % p.Unlock(userEve))
-
 
 
