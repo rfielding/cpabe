@@ -81,12 +81,12 @@ class FiniteCyclicGroup:
         return (a ** b) % self.N
     def Hs(self,s):
         return int.from_bytes(hashlib.sha256(s.encode()).digest(),'big') % self.N
-    def Hpn(self,s,n):
+    def Hpn(self,S,s,n):
         h1 = G.mul(n,self.Hs((s+"X")))
-        h2 = self.Hs((s+"Y"))
+        h2 = G.mul(S,self.Hs((s+"Y")))
         return [h1,h2]
-    def Hp(self,s):
-        return self.Hpn(s,1)
+    def Hp(self,S,s):
+        return self.Hpn(S,s,1)
 
 G = FiniteCyclicGroup(7919)
 
@@ -141,7 +141,7 @@ class Padlock:
         for attrs in cases:
             pts = [K]
             for a in attrs:
-                pts.append(G.Hp(a))
+                pts.append(G.Hp(S,a))
             self.Cases.append([
                 attrs,
                 CreatePadlockCase(T,pts)
@@ -188,7 +188,7 @@ def UnlockPadlock(v,priv):
 
 def Issue(S,attrs):
     # TODO: an actual JWT with a signature, and a public key so that it can be challenged
-    pk = G.Hs(attrs["id"])
+    pk = G.Hp(S,attrs["id"])[0]
     attrs["pk"] = pk
     attrs["id:%s" % attrs["id"]] = "?"
     attrs["exp"] = round(time())
@@ -197,25 +197,23 @@ def Issue(S,attrs):
         if semi > 0:
             k = a[0:semi]
             v = a[semi+1:]
-            attrs[a] = G.Hp(a)
+            attrs[a] = G.Hp(S,a)
     return attrs
          
-# The target key may be an existing key for a file
-# K acts as a nonce for the curves
-T = G.Hp("TheBigSecretLock")[0]
-K = G.Hp("RandomGibberJabber")
-
 # Some certificates issued by CA
 CASecret = 432
 
+# The target key may be an existing key for a file
+# K acts as a nonce for the curves
+T = G.Hs("TheBigSecretLock")
+K = G.Hp(CASecret,"RandomGibberJabber")
+
 # Yes, we actually compile arbitrary and/or exprs to CNF for you
-p = Padlock(CASecret,G.Hp("oldExistingKey")[0],G.Hp("2022-12-31:01:03:32"),[ 
+p = Padlock(CASecret,G.Hs("oldExistingKey"),G.Hp(CASecret,"2022-12-31:01:03:32"),[ 
   "and", 
   ["or","cit:NL","cit:US"], 
   "age:adult" 
 ])
-
-
 userAlice = Issue(CASecret,{
   "id": "Alice", 
   "cit:US": "?",
@@ -233,6 +231,7 @@ userEve = Issue(CASecret,{
   "age:adult": "?"
 })
 
+# Unlocking locks is public
 print("Alice: %s" % p.Unlock(userAlice))
 print("Bob: %s" % p.Unlock(userBob))
 print("Eve: %s" % p.Unlock(userEve))
