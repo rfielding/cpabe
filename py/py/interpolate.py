@@ -135,7 +135,6 @@ class Padlock:
             for term in andCase[1:]:
                 rowhdr.append(term)
             cases.append(rowhdr)
-        print("%s" % cases)
         self.Cases = []
         for attrs in cases:
             pts = [K]
@@ -205,7 +204,7 @@ p = Padlock(G.Hp("oldExistingKey")[0],G.Hp("2022-12-31:01:03:32"),[
 
 userAlice = { "cit:US":aUS, "age:drive": aDR, "age:adult": aAD }
 userBob = {"cit":aUS}
-userEve = {"cit:NL":aNL, "E":aDR}
+userEve = {"cit:NL":aNL, "age:drive":aDR}
 
 print("Alice: %s" % p.Unlock(userAlice))
 print("Bob: %s" % p.Unlock(userBob))
