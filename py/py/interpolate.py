@@ -94,7 +94,7 @@ def CalcKey(pts):
     n = len(pts)
     priv = []
     # equiv to:
-    # - (Y_j)(X_j)^{n-1}
+    # - ((Y_j)(X_j))(X_j)^{n-2}
     for j in range(0,n):
         X_j = pts[j][0]
         Y_j = pts[j][1]
@@ -203,13 +203,8 @@ def Issue(S,attrs):
 # Some certificates issued by CA
 CASecret = 432
 
-# The target key may be an existing key for a file
-# K acts as a nonce for the curves
-T = G.Hs("TheBigSecretLock")
-K = G.Hp(CASecret,"RandomGibberJabber")
-
 # Yes, we actually compile arbitrary and/or exprs to CNF for you
-p = Padlock(CASecret,G.Hs("oldExistingKey"),G.Hp(CASecret,"2022-12-31:01:03:32"),[ 
+p = Padlock(CASecret,899,[9012,134],[ 
   "and", 
   ["or","cit:NL","cit:US"], 
   "age:adult" 
