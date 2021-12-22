@@ -164,7 +164,8 @@ class Padlock:
                 k = self.K
                 privPoints = [[G.mul(1,k[0]),k[1]]]
                 for attrName in acase[0]:
-                    privPoints.append(cert[attrName])
+                    p = cert[attrName]
+                    privPoints.append([G.mul(pk,p[0]),p[1]])
                 priv = CalcKey(privPoints)
                 return UnlockPadlock(acase[1],priv)
         return 0
@@ -204,7 +205,7 @@ def Issue(S,attrs):
             k = a[0:semi]
             v = a[semi+1:]
             g = G.Hp(S,a)
-            attrs[a] = [G.mul(1,g[0]), g[1]]
+            attrs[a] = [G.mul(G.inv(pk),g[0]), g[1]]
     return attrs
          
 # Some certificates issued by CA
