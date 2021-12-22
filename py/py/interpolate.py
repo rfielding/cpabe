@@ -3,6 +3,69 @@
 import hashlib
 # Use a simple finite prime group to test this
 
+
+
+
+
+# Convert a tree into or over and, prefix notation.
+def cnfTree(t):
+	if isinstance(t,list):
+		# evaluate our args first
+		args = []
+		for n in range(1,len(t)):
+			args.append( cnfTree(t[n]) )
+		# sort: terms before and before or
+		argsSorted = []
+		for a in args:
+			if not isinstance(a,list):
+				argsSorted.append(a)
+		for a in args:
+			if isinstance(a,list) and a[0]=="and":
+				argsSorted.append(a)
+		for a in args:
+			if isinstance(a,list) and a[0]=="or":
+				argsSorted.append(a)
+		r = []
+		r.append(t[0])
+		# merge and and or
+		aPrev = None
+		for a in argsSorted:
+			if t[0]=="or" and isinstance(a,list) and a[0]=="or":
+				for m in range(1,len(a)):
+					r.append(a[m])
+			elif t[0]=="and" and isinstance(a,list) and a[0]=="and":
+				for m in range(1,len(a)):
+					r.append(a[m])
+			elif aPrev and aPrev[0]=="and" and isinstance(a,list) and a[0]=="and":
+				for m in range(1,len(a)):
+					aPrev.append(a[m])
+			elif aPrev and aPrev[0]=="or" and isinstance(a,list) and a[0]=="or":
+				for m in range(1,len(a)):
+					aPrev.append(a[m])
+			else:
+				r.append(a)
+			aPrev = a
+		# now we distribute and over or
+		if isinstance(aPrev,list) and aPrev[0]=="or" and t[0]=="and":
+			# create an argsD to or with the last arg, which should be the only or left
+			argsD = []
+			for a in r[1:-1]:
+				argsD.append(a)
+			r2 = ["or"]
+			for m in range(1,len(aPrev)):
+				v = ["and"]
+				for d in argsD:
+					v.append(d)
+				v.append(aPrev[m])
+				r2.append(v)
+			return r2	
+		else:	
+			return r
+	else:
+		return t
+
+
+
 class FiniteCyclicGroup:
     def __init__(self,n):
         self.N = n
@@ -62,9 +125,18 @@ def CalcPub(pts):
 # be safe to publish, so should contain no secrets
 class Padlock:
     # Gives a list of all the ways that the lock is satisfied
-    def __init__(self,T,K,cases):
-        self.Cases = []
+    def __init__(self,T,K,tree):
         self.K = K
+        # compile the tree to CNF and convert it to cases
+        cnft = cnfTree(tree)
+        cases = []
+        for andCase in cnft[1:]:
+            rowhdr = []	
+            for term in andCase[1:]:
+                rowhdr.append(term)
+            cases.append(rowhdr)
+        print("%s" % cases)
+        self.Cases = []
         for attrs in cases:
             pts = [K]
             for a in attrs:
@@ -112,31 +184,29 @@ def UnlockPadlock(v,priv):
     return total
 
 
+# Some attributes that we want to decrypt to
+aUK = G.Hp("cit:UK")
+aUS = G.Hp("cit:US")
+aNL = G.Hp("cit:NL")
+aAD = G.Hp("age:adult")
+aDR = G.Hp("age:drive")
 
-
-A = G.Hp("A")
-B = G.Hp("B")
-C = G.Hp("C")
-D = G.Hp("D")
-E = G.Hp("E")
-
-# The key that we want to target generating for this lock
-# It may be for a file that already exists
+# The target key may be an existing key for a file
+# K acts as a nonce for the curves
 T = G.Hp("TheBigSecretLock")[0]
 K = G.Hp("RandomGibberJabber")
 
-# The padlock is all public info, with all the ways it can unlock
-p = Padlock(T,K,[
-    ["A","B"],
-    ["D"],
-    ["B","C"]
+# Yes, we actually compile arbitrary and/or exprs to CNF for you
+p = Padlock(G.Hp("oldExistingKey")[0],G.Hp("2022-12-31:01:03:32"),[ 
+  "and", 
+  ["or","cit:NL","cit:US"], 
+  "age:adult" 
 ])
 
-# Us using locks, given private info in last arg
-# We explicitly pick the way it opens here
-userAlice = {"A":A,"B":B,"C":C}
-userBob = {"D":D}
-userEve = {"E":E}
+userAlice = { "cit:US":aUS, "age:drive": aDR, "age:adult": aAD }
+userBob = {"cit":aUS}
+userEve = {"cit:NL":aNL, "E":aDR}
+
 print("Alice: %s" % p.Unlock(userAlice))
 print("Bob: %s" % p.Unlock(userBob))
 print("Eve: %s" % p.Unlock(userEve))
