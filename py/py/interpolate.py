@@ -94,7 +94,11 @@ def CalcKey(pts):
     n = len(pts)
     priv = []
     # equiv to:
-    # - ((Y_j)(X_j))(X_j)^{n-2}
+    #  ((Y_j)(X_j))(X_j)^{n-2}
+    # =(Y_j)((X_j))(X_j)^{n-2}
+    # =(Y_j)(X_j)^{n-1}
+    # =(Y_j)1           # but only in a prime order field! wtf!
+    # =(Y_j)            # so the whole sum is just \sum_j Y_j
     for j in range(0,n):
         X_j = pts[j][0]
         Y_j = pts[j][1]
@@ -110,6 +114,11 @@ def CalcKey(pts):
 def CalcPub(pts):
     n = len(pts)
     pub = []
+    # equiv to:
+    #  X_z = v x_z
+    #  den = \prod_i v(x_j-x_i)
+    #  den = v^{n-1} \prod_i (x_j-x_i)
+    #  den = \prod_i (x_j-x_i)
     for j in range(0,n):
         X_j = pts[j][0]
         den = 1
