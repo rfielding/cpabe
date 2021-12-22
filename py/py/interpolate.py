@@ -81,12 +81,12 @@ class FiniteCyclicGroup:
         return (a ** b) % self.N
     def Hs(self,s):
         return int.from_bytes(hashlib.sha256(s.encode()).digest(),'big') % self.N
-    def Hpn(self,S,s,n):
-        h1 = G.mul(n,self.Hs((s+"X")))
+    def Hpn(self,S,n,s):
+        h1 = G.mul(n,self.Hs((s+"X"+("%s" % S))))
         h2 = self.Hs((s+"Y"+("%s" % S)))
         return [h1,h2]
     def Hp(self,S,s):
-        return self.Hpn(S,s,1)
+        return self.Hpn(S,1,s)
 
 G = FiniteCyclicGroup(7919)
 
