@@ -95,6 +95,7 @@ def CalcKey(pts):
     priv = []
     # equiv to:
     #  ((Y_j)(X_j))(X_j)^{n-2}
+    # =((Y_j)(X_j)^{n-1}v^{n-1}
     for j in range(0,n):
         X_j = pts[j][0]
         Y_j = pts[j][1]
@@ -160,7 +161,8 @@ class Padlock:
                 if not attrName in cert:
                     satisfied = False
             if satisfied:
-                privPoints = [[self.K[0],self.K[1]]]
+                k = self.K
+                privPoints = [[G.mul(1,k[0]),k[1]]]
                 for attrName in acase[0]:
                     privPoints.append(cert[attrName])
                 priv = CalcKey(privPoints)
@@ -201,7 +203,8 @@ def Issue(S,attrs):
         if semi > 0:
             k = a[0:semi]
             v = a[semi+1:]
-            attrs[a] = G.Hp(S,a)
+            g = G.Hp(S,a)
+            attrs[a] = [G.mul(1,g[0]), g[1]]
     return attrs
          
 # Some certificates issued by CA
