@@ -3,10 +3,6 @@
 from time import time
 import hashlib
 
-
-
-
-
 # Convert a tree into or over and, prefix notation.
 def cnfTree(t):
 	if isinstance(t,list):
@@ -88,7 +84,8 @@ class FiniteCyclicGroup:
     def Hp(self,S,s):
         return self.Hpn(S,s,1)
 
-G = FiniteCyclicGroup(7919)
+# large prime.  i had to look it up
+G = FiniteCyclicGroup(36497)
 
 def CalcKey(pts):
     n = len(pts)
@@ -133,6 +130,7 @@ def CalcPub(pts):
 class Padlock:
     # Gives a list of all the ways that the lock is satisfied
     def __init__(self,S,T,tree):
+        self.Tree = tree
         K = G.Hpn(S,"K",1)
         # compile the tree to CNF and convert it to cases
         cnft = cnfTree(tree)
@@ -206,15 +204,17 @@ def Issue(S,attrs):
             attrs[a] = [G.mul(pk,g[0]), g[1]]
     return attrs
          
-# Some certificates issued by CA
-CASecret = 432
-TargetKey = 899
+# The CA secret....
+CASecret = G.Hs("FarkingDifficult!123")
+
 # Yes, we actually compile arbitrary and/or exprs to CNF for you
+TargetKey = G.Hs("f1rstP@dlock")
 p = Padlock(CASecret,TargetKey,[ 
   "and", 
   ["or","cit:NL","cit:US"], 
   "age:adult" 
 ])
+
 userAlice = Issue(CASecret,{
   "id": "Alice", 
   "cit:US": "?",
@@ -232,11 +232,16 @@ userEve = Issue(CASecret,{
   "age:adult": "?"
 })
 
-# Unlocking locks is public
-print("Alice: %s" % p.Unlock(userAlice))
-print("Bob: %s" % p.Unlock(userBob))
-print("Eve: %s" % p.Unlock(userEve))
+print("Padlock Condition to unlock key %d: %s" % (TargetKey,p.Tree))
+print()
 
-print("Alice: %s" % userAlice)
-print("Eve: %s" % userEve)
+print("Unlocking locks is public:")
+print("  Alice: %s" % p.Unlock(userAlice))
+print("  Bob: %s" % p.Unlock(userBob))
+print("  Eve: %s" % p.Unlock(userEve))
+print()
+
+print("Notice that signed points are different for Alice and Eve:")
+print("  Alice: %s" % userAlice)
+print("  Eve: %s" % userEve)
 
