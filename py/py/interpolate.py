@@ -166,7 +166,7 @@ class Padlock:
                 for attrName in acase[0]:
                     privPoints.append(cert[attrName])
                 priv = CalcKey(privPoints)
-                return UnlockPadlock(acase[1],priv)
+                return UnlockPadlock2(acase[1],priv,privPoints)
         return 0
 
 # Perform a pre-calculation to avoid non-linear
@@ -180,6 +180,16 @@ def CreatePadlockCase(T,pts):
         total = G.add(total, G.mul(pub[j],priv[j]))
     return [[pub,G.sub(T,total)]]
 
+# Once the correct case is determined, we just need points and a diff
+def UnlockPadlock2(v,priv,pts):
+    # given the diff we are off by, and points alone, we can compute lock from scratch for this case
+    total = v[0][1]
+    n = len(pts)
+    priv = CalcKey(pts)
+    pub = CalcPub(pts)
+    for j in range(0,n):
+        total = G.add(total, G.mul(pub[j],priv[j]))
+    return total
 
 def UnlockPadlock(v,priv):
     pub = v[0][0]
@@ -210,9 +220,9 @@ def Issue(S,attrs):
          
 # Some certificates issued by CA
 CASecret = 432
-
+TargetKey = 899
 # Yes, we actually compile arbitrary and/or exprs to CNF for you
-p = Padlock(CASecret,899,[ 
+p = Padlock(CASecret,TargetKey,[ 
   "and", 
   ["or","cit:NL","cit:US"], 
   "age:adult" 
