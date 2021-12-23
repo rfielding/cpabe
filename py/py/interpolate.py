@@ -158,12 +158,12 @@ class Padlock:
                 if not attrName in cert:
                     satisfied = False
             if satisfied:
-                k = cert["K"]
-                privPoints = [[G.mul(1,k[0]),k[1]]]
+                privPoints = [cert["K"]]
                 for attrName in acase[0]:
                     privPoints.append(cert[attrName])
                 priv = CalcKey(privPoints)
-                return UnlockPadlock2(acase[1],priv,privPoints)
+                T = acase[1][0][1]
+                return UnlockPadlock2(T,privPoints)
         return 0
 
 # Perform a pre-calculation to avoid non-linear
@@ -177,10 +177,17 @@ def CreatePadlockCase(T,pts):
         total = G.add(total, G.mul(pub[j],priv[j]))
     return [[pub,G.sub(T,total)]]
 
+# This is the same as signing
+def Sign(cert):
+    pts = []
+    for k in cert:
+        pts.append(cert[k])
+    return UnlockPadlock2(0,pts)
+
 # Once the correct case is determined, we just need points and a diff
-def UnlockPadlock2(v,priv,pts):
+def UnlockPadlock2(T,pts):
     # given the diff we are off by, and points alone, we can compute lock from scratch for this case
-    total = v[0][1]
+    total = T
     n = len(pts)
     priv = CalcKey(pts)
     pub = CalcPub(pts)
@@ -194,7 +201,10 @@ def Issue(S,attrs):
     pk = G.Hs(attrs["id"]+str(S))
     attrs["K"] = G.Hpn(S,"K",pk)
     attrs["id:%s" % attrs["id"]] = "?"
+    del attrs["id"]
     attrs["exp"] = round(time())
+    attrs["exp:%s" % attrs["exp"]] = "?"
+    del attrs["exp"]
     for a in attrs:
         semi = a.find(":")
         if semi > 0:
@@ -216,17 +226,17 @@ p = Padlock(CASecret,TargetKey,[
 ])
 
 userAlice = Issue(CASecret,{
-  "id": "Alice", 
+  "id": "alice@gmail.com", 
   "cit:US": "?",
   "age:drive": "?",
   "age:adult": "?"
 })
 userBob = Issue(CASecret,{
-  "id": "Bob", 
+  "id": "bob@gmail.com", 
   "cit:US": "?"
 })
 userEve = Issue(CASecret,{
-  "id": "Eve", 
+  "id": "eve@yahoo.com", 
   "cit:NL": "?",
   "age:drive": "?",
   "age:adult": "?"
@@ -241,7 +251,10 @@ print("  Bob: %s" % p.Unlock(userBob))
 print("  Eve: %s" % p.Unlock(userEve))
 print()
 
-print("Notice that signed points are different for Alice and Eve:")
-print("  Alice: %s" % userAlice)
-print("  Eve: %s" % userEve)
+print("Notice that signed points are different for Alice and Eve")
+print("  Alice (%d): %s" % (Sign(userAlice),userAlice))
+print("  Eve( (%d): %s" % (Sign(userEve),userEve))
+
+print()
+print("The public (commutative) hash for a cert subset is just passing through all points")
 
