@@ -132,8 +132,8 @@ def CalcPub(pts):
 # be safe to publish, so should contain no secrets
 class Padlock:
     # Gives a list of all the ways that the lock is satisfied
-    def __init__(self,S,T,K,tree):
-        self.K = K
+    def __init__(self,S,T,tree):
+        K = G.Hpn(S,"K",1)
         # compile the tree to CNF and convert it to cases
         cnft = cnfTree(tree)
         cases = []
@@ -161,7 +161,7 @@ class Padlock:
                 if not attrName in cert:
                     satisfied = False
             if satisfied:
-                k = self.K
+                k = cert["K"]
                 privPoints = [[G.mul(1,k[0]),k[1]]]
                 for attrName in acase[0]:
                     privPoints.append(cert[attrName])
@@ -194,8 +194,9 @@ def UnlockPadlock(v,priv):
 
 def Issue(S,attrs):
     # TODO: an actual JWT with a signature, and a public key so that it can be challenged
-    pk = G.Hp(S,attrs["id"])[0]
+    pk = G.Hs(attrs["id"]+str(S))
     attrs["pk"] = pk
+    attrs["K"] = G.Hpn(S,"K",1)
     attrs["id:%s" % attrs["id"]] = "?"
     attrs["exp"] = round(time())
     for a in attrs:
@@ -211,7 +212,7 @@ def Issue(S,attrs):
 CASecret = 432
 
 # Yes, we actually compile arbitrary and/or exprs to CNF for you
-p = Padlock(CASecret,899,[9012,134],[ 
+p = Padlock(CASecret,899,[ 
   "and", 
   ["or","cit:NL","cit:US"], 
   "age:adult" 
