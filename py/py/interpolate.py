@@ -61,7 +61,6 @@ def cnfTree(t):
 		return t
 
 
-
 class FiniteCyclicGroup:
     def __init__(self,n):
         self.N = n
@@ -77,9 +76,11 @@ class FiniteCyclicGroup:
         return (a ** b) % self.N
     def Hs(self,s):
         return int.from_bytes(hashlib.sha256(s.encode()).digest(),'big') % self.N
+    def Hm(self,S,s):
+        return G.pow(self.Hs(s),S)
     def Hpn(self,S,s,n):
-        h1 = G.mul(n,self.Hs((s+"X")))
-        h2 = G.mul(S,self.Hs((s+"Y")))
+        h1 = G.mul(self.Hs(s),n)
+        h2 = G.Hm(S,s)
         return [h1,h2]
     def Hp(self,S,s):
         return self.Hpn(S,s,1)
@@ -178,7 +179,7 @@ def CreatePadlockCase(T,pts):
     return [[pub,G.sub(T,total)]]
 
 # This is the same as signing
-def Sign(cert):
+def HashCert(cert):
     pts = []
     for k in cert:
         pts.append(cert[k])
@@ -195,11 +196,45 @@ def UnlockPadlock2(T,pts):
         total = G.add(total, G.mul(pub[j],priv[j]))
     return total
 
+def VerifyCert(referenceCert,checkCert):
+    macOfK = referenceCert["K"][1]
+    for k in checkCert:
+        # Given that we believe the K value of reference cert, check other cert to see if its signed by same
+        pointToCheck = checkCert[k][1]
+        if Verify("K",macOfK,k,pointToCheck)==False:
+            return False
+    return True
 
+# Given a pair of objects, and their pre-hashed values, to verify that they were signed by same signer.
+# Use a signed value that you already trust for this.
+def Verify(a,Ma,b,Mb):
+    # Given: a,b,Ma = H(a)^S1, Mb = H(b)^S2
+    # Trying to detect S1 != S2
+    #
+    # H(a)^S1 H(a)^n H(b)^S2 H(b)^n
+    # H(a)^{S1+n} H(b)^{S2+n}
+    # Ma^n Mb^n
+    # =
+    # H(a)^S1 H(b)^S2 H(a)^n H(b)^n
+    # Ma Mb (H(a)H(b))^n
+    n = 100
+    Ha = G.Hs(a)
+    Han = G.pow(Ha,n)
+    Hb = G.Hs(b)
+    Hbn = G.pow(Hb,n)
+    expected = G.mul(G.mul(Ma,Han),G.mul(Mb,Hbn))
+    got = G.mul(G.mul(Ma,Mb),G.pow(G.mul(Ha,Hb),n))
+    return G.sub(expected,got)==0
+
+
+# A certificate is an ordinary map of attribute assertions, with signed points for the assertions.
+# a hash of these attributes is just passing a curve through the points, just like key derivation
 def Issue(S,attrs):
-    # TODO: an actual JWT with a signature, and a public key so that it can be challenged
-    pk = G.Hs(attrs["id"]+str(S))
-    attrs["K"] = G.Hpn(S,"K",pk)
+    # Bind all of these attributes together with a nonce
+    # TODO: ratio attack:w!
+    nonce = G.Hm(S,attrs["id"])
+    attrs["K"] = G.Hpn(S,"K",nonce)
+    # treat attr:val with ? as a request to sign an assertion
     attrs["id:%s" % attrs["id"]] = "?"
     del attrs["id"]
     attrs["exp"] = round(time())
@@ -211,14 +246,16 @@ def Issue(S,attrs):
             k = a[0:semi]
             v = a[semi+1:]
             g = G.Hp(S,a)
-            attrs[a] = [G.mul(pk,g[0]), g[1]]
+            attrs[a] = [G.mul(nonce,g[0]), g[1]]
     return attrs
          
 # The CA secret....
-CASecret = G.Hs("FarkingDifficult!123")
+CASecret = G.Hs("F!@rkingDifficult!123")
+CAPub = G.Hs("PublicKey")
 
-# Yes, we actually compile arbitrary and/or exprs to CNF for you
+# Deterministic "random" key
 TargetKey = G.Hs("f1rstP@dlock")
+
 p = Padlock(CASecret,TargetKey,[ 
   "and", 
   ["or","cit:NL","cit:US"], 
@@ -252,9 +289,16 @@ print("  Eve: %s" % p.Unlock(userEve))
 print()
 
 print("Notice that signed points are different for Alice and Eve")
-print("  Alice (%d): %s" % (Sign(userAlice),userAlice))
-print("  Eve( (%d): %s" % (Sign(userEve),userEve))
+print("  Alice (%d): %s" % (HashCert(userAlice),userAlice))
+print("  Eve( (%d): %s" % (HashCert(userEve),userEve))
 
 print()
 print("The public (commutative) hash for a cert subset is just passing through all points")
-
+answer = Verify(
+        #"id:alice@gmail.com",userAlice["id:alice@gmail.com"][1],
+        "K",userAlice["K"][1],
+        "K",userBob["id:bob@gmail.com"][1],
+)
+print("Check that Alice has a valid cert, given that Bob does: %s" % VerifyCert(userAlice,userBob))
+userBob["id:bobg@gmail.com"]=[334,432]
+print("Check that Alice detects modified Bob cert fails: %s" % (False==VerifyCert(userAlice,userBob)))
