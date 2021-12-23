@@ -79,8 +79,8 @@ class FiniteCyclicGroup:
     def Hm(self,S,s):
         return G.pow(self.Hs(s),S)
     def Hpn(self,S,s,n):
-        h1 = G.mul(self.Hs(s),n)
-        h2 = G.Hm(S,s)
+        h1 = G.mul(self.Hm(S,s+"X"),n)
+        h2 = G.Hm(S,s+"Y")
         return [h1,h2]
     def Hp(self,S,s):
         return self.Hpn(S,s,1)
