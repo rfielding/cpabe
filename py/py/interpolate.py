@@ -205,18 +205,26 @@ def VerifyCert(referenceCert,checkCert):
             return False
     return True
 
+#### TODO: see if it's even possible.  Maybe not
 # Given a pair of objects, and their pre-hashed values, to verify that they were signed by same signer.
 # Use a signed value that you already trust for this.
 def Verify(a,Ma,b,Mb):
     # Given: a,b,Ma = H(a)^S1, Mb = H(b)^S2
     # Trying to detect S1 != S2
+    # S = S1, S+D = S2
     #
-    # H(a)^S1 H(a)^n H(b)^S2 H(b)^n
-    # H(a)^{S1+n} H(b)^{S2+n}
+    # H(a)^S H(a)^n H(b)^(S+D) H(b)^n
+    # H(a)^{S+n} H(b)^{S+D+n}
+    # H(a)^{S+n} H(b)^{S+n} H(b)^D
     # Ma^n Mb^n
     # =
-    # H(a)^S1 H(b)^S2 H(a)^n H(b)^n
-    # Ma Mb (H(a)H(b))^n
+    # H(a)^S H(b)^(S+D) H(a)^n H(b)^n
+    # H(a)^S H(b)^S H(b)^D H(a)^n H(b)^n
+    # (H(a)H(b))^S H(b)^D H(a)^n H(b)^n
+    # (H(a)H(b))^S H(b)^D (H(a)H(b))^n
+    # (Ma Mb) (H(a)H(b))^n
+    #
+    # Maybe impossible to tell, as H(b)^D cancels!
     n = 100
     Ha = G.Hs(a)
     Han = G.pow(Ha,n)
@@ -292,13 +300,15 @@ print("Notice that signed points are different for Alice and Eve")
 print("  Alice (%d): %s" % (HashCert(userAlice),userAlice))
 print("  Eve( (%d): %s" % (HashCert(userEve),userEve))
 
-print()
-print("The public (commutative) hash for a cert subset is just passing through all points")
-answer = Verify(
-        #"id:alice@gmail.com",userAlice["id:alice@gmail.com"][1],
-        "K",userAlice["K"][1],
-        "K",userBob["id:bob@gmail.com"][1],
-)
-print("Check that Alice has a valid cert, given that Bob does: %s" % VerifyCert(userAlice,userBob))
-userBob["id:bobg@gmail.com"]=[334,432]
-print("Check that Alice detects modified Bob cert fails: %s" % (False==VerifyCert(userAlice,userBob)))
+### This code may be proving that its impossible to take a known good point,
+### and calculate whether it was signed by same signer.
+#print()
+#print("The public (commutative) hash for a cert subset is just passing through all points")
+#answer = Verify(
+#        #"id:alice@gmail.com",userAlice["id:alice@gmail.com"][1],
+#        "K",userAlice["K"][1],
+#        "K",userBob["id:bob@gmail.com"][1],
+#)
+#print("Check that Alice has a valid cert, given that Bob does: %s" % VerifyCert(userAlice,userBob))
+#userBob["id:bobg@gmail.com"]=[334,432]
+#print("Check that Alice detects modified Bob cert fails: %s" % (False==VerifyCert(userAlice,userBob)))
