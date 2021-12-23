@@ -153,7 +153,6 @@ class Padlock:
             ])
     def Unlock(self,cert):
         # a multiplier for x axis of points to enforce consistent user attrs
-        pk = cert["pk"]
         # cases are of the form: [["A","B"],AB]
         for acase in self.Cases:
             satisfied = True
@@ -191,22 +190,11 @@ def UnlockPadlock2(v,priv,pts):
         total = G.add(total, G.mul(pub[j],priv[j]))
     return total
 
-def UnlockPadlock(v,priv):
-    pub = v[0][0]
-    n = len(pub)
-    pubK = v[0][1]
-    total = pubK
-    # in EC pairs, this would be a product of pre-paired objecs:
-    #   \prod_j^{K,A,B} e( G1, priv_j G2)^{pub[j]}
-    for j in range(0,n):
-        total = G.add(total, G.mul(pub[j],priv[j]))
-    return total
 
 def Issue(S,attrs):
     # TODO: an actual JWT with a signature, and a public key so that it can be challenged
     pk = G.Hs(attrs["id"]+str(S))
-    attrs["pk"] = pk
-    attrs["K"] = G.Hpn(S,"K",1)
+    attrs["K"] = G.Hpn(S,"K",pk)
     attrs["id:%s" % attrs["id"]] = "?"
     attrs["exp"] = round(time())
     for a in attrs:
@@ -215,7 +203,7 @@ def Issue(S,attrs):
             k = a[0:semi]
             v = a[semi+1:]
             g = G.Hp(S,a)
-            attrs[a] = [G.mul(1,g[0]), g[1]]
+            attrs[a] = [G.mul(pk,g[0]), g[1]]
     return attrs
          
 # Some certificates issued by CA
@@ -249,4 +237,6 @@ print("Alice: %s" % p.Unlock(userAlice))
 print("Bob: %s" % p.Unlock(userBob))
 print("Eve: %s" % p.Unlock(userEve))
 
+print("Alice: %s" % userAlice)
+print("Eve: %s" % userEve)
 
