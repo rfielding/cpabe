@@ -1,5 +1,6 @@
 package main
 
+import "time"
 import "bytes"
 import "math/big"
 import "crypto/sha256"
@@ -7,6 +8,7 @@ import "crypto/rand"
 import "golang.org/x/crypto/bn256"
 import "log"
 import "encoding/hex"
+import "encoding/json"
 
 // N just needs to be prime for testing
 var N = bn256.Order
@@ -147,16 +149,24 @@ func HT(p *bn256.GT) []byte {
 	return h[:]
 }
 
+func B(v *big.Int) []byte {
+	h := sha256.Sum256(v.Bytes())
+	return h[:]
+}
+
 type Cert struct {
-	Nonce  *big.Int
-	Exp    int64
-	Shares map[string]*bn256.G2
+	Nonce   *big.Int             `json:"-"`
+	NonceM  []byte               `json:"nonce"`
+	Exp     int64                `json:"exp"`
+	Shares  map[string]*bn256.G2 `json:"-"`
+	SharesM map[string][]byte    `json:"shares"`
 }
 
 type PadlockCase struct {
-	Required []string
-	FilePub  *bn256.G1
-	Outcome  []byte
+	Required []string          `json:"required"`
+	FilePub  *bn256.G1         `json:"-"`
+	FilePubM []byte            `json:"filepub"`
+	Fixes    map[string][]byte `json:"fixes"`
 }
 
 //
@@ -178,17 +188,19 @@ type PadlockCase struct {
 // =
 // e(filePub1, \sum_j A_j)
 //
-func Issue(S *big.Int, attrs []string) *Cert {
+func Issue(S *big.Int, attrs []string, exp int64) *Cert {
 	nonce := Rand()
 	invNonce := Inv(nonce)
+	sharesM := make(map[string][]byte)
 	shares := make(map[string]*bn256.G2)
 	for _, a_j := range attrs {
 		v := Mul(invNonce, Mul(S, V(a_j, S)))
 		shares[a_j] = Pub2(v)
+		sharesM[a_j] = Pub2(v).Marshal()
 	}
-	return &Cert{Shares: shares, Nonce: nonce}
+	return &Cert{Shares: shares, SharesM: sharesM, Nonce: nonce, NonceM: B(nonce), Exp: exp}
 }
-func MakePadlockCase(caPub1 *bn256.G1, S *big.Int, attrs []string) *PadlockCase {
+func MakePadlockCase(caPub1 *bn256.G1, S *big.Int, attrs []string, Kresults map[string][]byte) *PadlockCase {
 	sum := Const(0)
 	f := Rand()
 	for _, attr_j := range attrs {
@@ -197,13 +209,18 @@ func MakePadlockCase(caPub1 *bn256.G1, S *big.Int, attrs []string) *PadlockCase 
 	}
 	outcome :=
 		HT(bn256.Pair(caPub1, new(bn256.G2).ScalarBaseMult(sum)))
+	fixes := make(map[string][]byte)
+	for k, v := range Kresults {
+		fixes[k] = Xor(v, outcome)
+	}
 	return &PadlockCase{
 		Required: attrs,
 		FilePub:  Pub1(f),
-		Outcome:  outcome,
+		FilePubM: Pub1(f).Marshal(),
+		Fixes:    fixes,
 	}
 }
-func UnlockCase(padlockCase *PadlockCase, cert *Cert) []byte {
+func UnlockCase(padlockCase *PadlockCase, cert *Cert) map[string][]byte {
 	total := new(bn256.G2).ScalarBaseMult(Const(0))
 	for _, attr_j := range padlockCase.Required {
 		a_j, ok := cert.Shares[attr_j]
@@ -211,29 +228,59 @@ func UnlockCase(padlockCase *PadlockCase, cert *Cert) []byte {
 			total.Add(total, new(bn256.G2).ScalarMult(a_j, cert.Nonce))
 		}
 	}
-	return HT(bn256.Pair(padlockCase.FilePub, total))
+	outcome := HT(bn256.Pair(padlockCase.FilePub, total))
+	fixed := make(map[string][]byte)
+	for k, v := range padlockCase.Fixes {
+		fixed[k] = Xor(outcome, v)
+	}
+	return fixed
+}
+
+func Xor(a []byte, b []byte) []byte {
+	c := make([]byte, len(a))
+	for i, _ := range a {
+		c[i] = a[i] ^ b[i]
+	}
+	return c
 }
 
 func Hex(v []byte) string {
 	return hex.EncodeToString(v)
 }
 
+func AsJson(v interface{}) string {
+	j, _ := json.MarshalIndent(v, "", "  ")
+	return string(j)
+}
+
+/*
+  ((((A and (B or C)) allows R) and D) allows W)
+*/
 func main() {
-	// This random number IS the CA
-	S := Rand()
+	// Using the CA password to create the secret,
+	// it's up to CA to have enough entropy.
+	S := V("squeamish ossifrage", Const(0))
 	caPub1 := Pub1(S)
 
 	// Some attributes that we want the CA to issue into a cert
-	attrs := []string{"citizen:US", "age:adult"}
-	cert := Issue(S, attrs)
+	allAttrs := []string{"citizen:US", "age:adult", "email:rob.fielding@gmail.com"}
+	exp := time.Now().Unix()
+	cert := Issue(S, allAttrs, exp)
 
 	// Round-trip test
-	padlockCase := MakePadlockCase(caPub1, S, attrs)
-	unlock := UnlockCase(padlockCase, cert)
+	Kr := B(Rand())
+	Kw := B(Rand())
 
-	log.Printf("\npadlockCase:%v\n\n unlockCase:%v", Hex(padlockCase.Outcome), Hex(unlock))
+	attrs := []string{"citizen:US", "age:adult"}
+	padlockCase := MakePadlockCase(caPub1, S, attrs, map[string][]byte{"R": Kr, "W": Kw})
+	unlock := UnlockCase(padlockCase, cert)["R"]
 
-	if bytes.Compare(padlockCase.Outcome, unlock) != 0 {
+	log.Printf("\n         Kr:%v\n\nunlockCase:%v", Hex(Kr), Hex(unlock))
+
+	if bytes.Compare(Kr, unlock) != 0 {
 		panic("decrypt and encrypt are inconsistent")
 	}
+
+	log.Printf("%s", AsJson(cert))
+	log.Printf("%s", AsJson(padlockCase))
 }
