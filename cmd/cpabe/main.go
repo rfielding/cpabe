@@ -170,7 +170,32 @@ type Cert struct {
 
 type Padlock struct {
 	Rule  interface{}   `json:"rule"`
-	Cases []PadlockCase `json:"padlock"`
+	Cases []*PadlockCase `json:"padlock"`
+}
+
+func NewPadlock(y interface{},keys map[string][]byte) (*Padlock,error) {
+	var err error
+
+	// Transform policy into or-of-and
+	y,err = EnumeratePolicy(y)
+	if err != nil {
+		return y,err
+	}
+	
+	cases := make([]*PadlockCase,0)
+	if ya, yok := y.([]interface{}); yok {
+		for i := 2; i < len(ya); i+=3 {
+			name := ya[i].(string)
+			keys := ya[i+1].([]interface{})
+			rule := ya[i+2].([]interface{})
+			for r := 1; r < len(rule); r++ {
+			}
+		}
+	}
+	return &Padlock{
+		Rule: y,
+		Cases: cases,
+	}
 }
 
 type PadlockCase struct {
@@ -372,12 +397,12 @@ func AsJsonSmall(v interface{}) string {
 
 */
 var examplePolicies = []string{`
-[ Policy, [Blasphemy/21+,white,black],
+[ Policy, [Adult/21+,white,black],
   IsLegal,[Read],[
     and, [every, age, 21+], [some, citizenship, NL, US], [every, no-citizenship, SA, PK]
   ],
   IsOwner,[Write],[
-    and, IsLegal, [some, email, r@gmail.com, d@gmail.com]
+    and, [every, email, r@gmail.com], IsLegal
   ],
 ]
 `}
@@ -389,6 +414,7 @@ func BIsOp(b interface{}, op string) bool {
 	}
 	return false
 }
+
 
 func EnumerateBools(b interface{}, env map[string]interface{}) (interface{}, error) {
 	arr, arrOk := b.([]interface{})
@@ -524,12 +550,20 @@ func EnumerateBools(b interface{}, env map[string]interface{}) (interface{}, err
 	}
 
 	distribute := func(arr []interface{}) ([]interface{}, error) {
+		if arr[0] == "or" {
+			return arr,nil
+		}
 		start := 0
+		// handle: [and, ..., [or, ...]]
 		for i := start + 2; i < len(arr); i++ {
 			if arri, iok := arr[i].([]interface{}); iok && BIsOp(arr[i],"or") {
-				for !BIsOp(arr[start+1],"or") {
+				// ["and",...,["or",...],...]
+				for start < i && !BIsOp(arr[start+1],"or") {
 					for j := 1; j < len(arri); j++ {
-						arr[i].([]interface{})[j] = append(arr[i].([]interface{})[j].([]interface{}), arr[start+1])
+						arr[i].([]interface{})[j] = append(
+							arr[i].([]interface{})[j].([]interface{}), 
+							arr[start+1],
+						)
 					}
 					arr[i] = arri
 					start++
@@ -538,6 +572,25 @@ func EnumerateBools(b interface{}, env map[string]interface{}) (interface{}, err
 			}
 		}
 		arr = arr[start:]
+
+		/// XXXXX There are major problems here, and I have given up on correct OR conditions
+		/// for the moment.  Using raw interface{} is just too much here.
+		start = 0
+		for i := start + 2; i < len(arr); i++ {
+			arri, iok := arr[i].([]interface{})
+			arrs, sok := arr[start+1].([]interface{})
+			if iok && sok && arri[0]=="or" && arrs[0]=="or" {
+				for ii := 1; ii < len(arri); ii++ {
+					for si := 1; si < len(arri); si++ {
+					}
+				}
+			}
+		}
+	
+		// If we are at:  ["and",["or",...]], then just ["or",...]
+		if len(arr) == 2 && arr[0] == "and" && BIsOp(arr[1],"or") {
+			return arr[1].([]interface{}),nil
+		}
 		return arr, nil
 	}
 
