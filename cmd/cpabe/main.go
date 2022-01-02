@@ -526,29 +526,14 @@ func EnumerateBools(b interface{}, env map[string]interface{}) (interface{}, err
 	distribute := func(arr []interface{}) ([]interface{}, error) {
 		start := 0
 		for i := start + 2; i < len(arr); i++ {
-			if BIsOp(arr[i], "or") {
-				if arri, iok := arr[i].([]interface{}); iok {
-					if true || !BIsOp(arr[start+1], "or") {
-						for j := 1; j < len(arri); j++ {
-							arr[i].([]interface{})[j] = append(arr[i].([]interface{})[j].([]interface{}), arr[start+1])
-						}
-						arr[i] = arri
-						arr[start] = "!!!"
-						start++
-						arr[start] = "and"
-					} else {
-						for j := 1; j < len(arri); j++ {
-							for k := 1; k < len(arri); k++ {
-								log.Printf("%d %d %s", j, k, arri[j].([]interface{}))
-								if arrj, ok := arri[j].([]interface{}); ok {
-									arr[i].([]interface{})[j] = append(arrj, arr[start+1].([]interface{})[k])
-								}
-							}
-							arr[i] = arri
-							start++
-							arr[start] = "or"
-						}
+			if arri, iok := arr[i].([]interface{}); iok && BIsOp(arr[i],"or") {
+				for !BIsOp(arr[start+1],"or") {
+					for j := 1; j < len(arri); j++ {
+						arr[i].([]interface{})[j] = append(arr[i].([]interface{})[j].([]interface{}), arr[start+1])
 					}
+					arr[i] = arri
+					start++
+					arr[start] = "and"
 				}
 			}
 		}
