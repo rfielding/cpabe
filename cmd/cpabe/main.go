@@ -1,18 +1,21 @@
 package main
 
-import "encoding/base64"
-import "fmt"
-import "time"
-import "bytes"
-import "math/big"
-import "crypto/sha256"
-import "crypto/rand"
-import "golang.org/x/crypto/bn256"
-import "log"
-import "encoding/hex"
-import "encoding/json"
-import "github.com/go-yaml/yaml"
-import "strings"
+import (
+	"bytes"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"log"
+	"math/big"
+	"strings"
+	"time"
+
+	"github.com/go-yaml/yaml"
+	"golang.org/x/crypto/bn256"
+)
 
 // N just needs to be prime for testing
 var N = bn256.Order
@@ -169,33 +172,36 @@ type Cert struct {
 }
 
 type Padlock struct {
-	Rule  interface{}   `json:"rule"`
+	Rule  interface{}    `json:"rule"`
 	Cases []*PadlockCase `json:"padlock"`
 }
 
-func NewPadlock(y interface{},keys map[string][]byte) (*Padlock,error) {
+func NewPadlock(y interface{}, keys map[string][]byte) (*Padlock, error) {
 	var err error
 
 	// Transform policy into or-of-and
-	y,err = EnumeratePolicy(y)
+	y, err = EnumeratePolicy(y)
 	if err != nil {
-		return y,err
+		return nil, err
 	}
-	
-	cases := make([]*PadlockCase,0)
+
+	cases := make([]*PadlockCase, 0)
 	if ya, yok := y.([]interface{}); yok {
-		for i := 2; i < len(ya); i+=3 {
+		for i := 2; i < len(ya); i += 3 {
 			name := ya[i].(string)
 			keys := ya[i+1].([]interface{})
 			rule := ya[i+2].([]interface{})
 			for r := 1; r < len(rule); r++ {
+				_ = r
+				_ = name
+				_ = keys
 			}
 		}
 	}
 	return &Padlock{
-		Rule: y,
+		Rule:  y,
 		Cases: cases,
-	}
+	}, nil
 }
 
 type PadlockCase struct {
@@ -415,7 +421,6 @@ func BIsOp(b interface{}, op string) bool {
 	return false
 }
 
-
 func EnumerateBools(b interface{}, env map[string]interface{}) (interface{}, error) {
 	arr, arrOk := b.([]interface{})
 	if !arrOk {
@@ -551,17 +556,17 @@ func EnumerateBools(b interface{}, env map[string]interface{}) (interface{}, err
 
 	distribute := func(arr []interface{}) ([]interface{}, error) {
 		if arr[0] == "or" {
-			return arr,nil
+			return arr, nil
 		}
 		start := 0
 		// handle: [and, ..., [or, ...]]
 		for i := start + 2; i < len(arr); i++ {
-			if arri, iok := arr[i].([]interface{}); iok && BIsOp(arr[i],"or") {
+			if arri, iok := arr[i].([]interface{}); iok && BIsOp(arr[i], "or") {
 				// ["and",...,["or",...],...]
-				for start < i && !BIsOp(arr[start+1],"or") {
+				for start < i && !BIsOp(arr[start+1], "or") {
 					for j := 1; j < len(arri); j++ {
 						arr[i].([]interface{})[j] = append(
-							arr[i].([]interface{})[j].([]interface{}), 
+							arr[i].([]interface{})[j].([]interface{}),
 							arr[start+1],
 						)
 					}
@@ -579,17 +584,17 @@ func EnumerateBools(b interface{}, env map[string]interface{}) (interface{}, err
 		for i := start + 2; i < len(arr); i++ {
 			arri, iok := arr[i].([]interface{})
 			arrs, sok := arr[start+1].([]interface{})
-			if iok && sok && arri[0]=="or" && arrs[0]=="or" {
+			if iok && sok && arri[0] == "or" && arrs[0] == "or" {
 				for ii := 1; ii < len(arri); ii++ {
 					for si := 1; si < len(arri); si++ {
 					}
 				}
 			}
 		}
-	
+
 		// If we are at:  ["and",["or",...]], then just ["or",...]
-		if len(arr) == 2 && arr[0] == "and" && BIsOp(arr[1],"or") {
-			return arr[1].([]interface{}),nil
+		if len(arr) == 2 && arr[0] == "and" && BIsOp(arr[1], "or") {
+			return arr[1].([]interface{}), nil
 		}
 		return arr, nil
 	}
