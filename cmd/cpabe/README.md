@@ -32,9 +32,9 @@ policy:
 The strategy:
 - convert `some` to `or`
 - convert `every` to `and`
-- gather and and or together
-- distribute and over or
-- distribute or over or 
+- gather `and` and `or` together
+- distribute `and` over `or`
+- distribute `or` over `or` 
 
 Result, flattened into `and` cases that can calculate unlock keys:
 
