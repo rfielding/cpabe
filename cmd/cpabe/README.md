@@ -46,18 +46,18 @@ policy:
       keys: [Read]
       requirement: {
         or: [
-          {and: [age:adult, citizen:US, not-citizen:SA, not-citizen:PK]},	
-          {and: [age:adult, citizen:NL, not-citizen:SA, not-citizen:PK]},	
+          {and: [{v:"age:adult"},{v:"citizen:US"},{v:"not-citizen:SA"},{v:"not-citizen:PK"}]},	
+          {and: [{v:"age:adult"},{v:"citizen:US"},{v:"not-citizen:SA"},{v:"not-citizen:PK"}]}	
         ]
       }
     is_owner:
       keys: [Write]
       requirement: {
         or: [
-          {and: [age:adult, citizen:US, not-citizen:SA, not-citizen:PK, email:r@gmail.com]},	
-          {and: [age:adult, citizen:NL, not-citizen:SA, not-citizen:PK, email:d@gmail.com]},	
-          {and: [age:adult, citizen:US, not-citizen:SA, not-citizen:PK, email:r@gmail.com]},	
-          {and: [age:adult, citizen:NL, not-citizen:SA, not-citizen:PK, email:d@gmail.com]},	
+          {and: [{v:"age:adult"},{v:"citizen:US"},{v:"not-citizen:SA"},{v:"not-citizen:PK"},{v:"email:r@gmail.com"}]},	
+          {and: [{v:"age:adult"},{v:"citizen:US"},{v:"not-citizen:SA"},{v:"not-citizen:PK"},{v:"email:r@gmail.com"}]},	
+          {and: [{v:"age:adult"},{v:"citizen:US"},{v:"not-citizen:SA"},{v:"not-citizen:PK"},{v:"email:d@gmail.com"}]},	
+          {and: [{v:"age:adult"},{v:"citizen:US"},{v:"not-citizen:SA"},{v:"not-citizen:PK"},{v:"email:d@gmail.com"}]}	
         ]
       }
 ```
@@ -78,7 +78,7 @@ type Key string // name of what was unlocked
 
 // Recursive node type. Blank by default during serialization
 type Requirement struct {
-  Term string // leaf statement in the form: field:value
+  V string // leaf statement in the form: field:value
   Require Requirement // reference that can be literally pulled in
   And []Requirement
   Or []Requirement // ultimately, everything will be: [or [and ...],[and ...]]
