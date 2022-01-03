@@ -36,6 +36,31 @@ The strategy:
 - distribute and over or
 - distribute or over or 
 
+Result, flattened into `and` cases that can calculate unlock keys:
+
+```yaml
+policy:
+  security: [SECRET//SQUIRREL, red, white]
+  unlocks:
+    is_legal:
+      keys: [Read]
+      requirement: {
+        or: [
+          {and: [age:adult, citizen:US, not-citizen:SA, not-citizen:PK]},	
+          {and: [age:adult, citizen:NL, not-citizen:SA, not-citizen:PK]},	
+        ]
+      }
+    is_owner:
+      keys: [Write]
+      requirement: {
+        or: [
+          {and: [age:adult, citizen:US, not-citizen:SA, not-citizen:PK, email:r@gmail.com]},	
+          {and: [age:adult, citizen:NL, not-citizen:SA, not-citizen:PK, email:d@gmail.com]},	
+          {and: [age:adult, citizen:US, not-citizen:SA, not-citizen:PK, email:r@gmail.com]},	
+          {and: [age:adult, citizen:NL, not-citizen:SA, not-citizen:PK, email:d@gmail.com]},	
+        ]
+      }
+```
 The Go struct to make this easier to implement:
 
 ```go
