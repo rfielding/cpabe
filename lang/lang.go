@@ -172,14 +172,22 @@ func ValidateRequirement(r *Requirement, unlocks map[string]*Unlock) (*Requireme
 		ors := make([]*Requirement, 0)
 		for _, s := range r.And {
 			if s.Or != nil {
-				ors = append(ors, s)
+				for j := 0; j < len(s.Or); j++ {
+					ors = append(
+						ors,
+						&Requirement{And: []*Requirement{s.Or[j]}},
+					)
+				}
 			} else {
 				ands = append(ands, s)
 			}
 		}
 		if len(ors) > 0 && len(ands) > 0 {
-			log.Printf("\nors\n%s\nands\n%s", AsYaml(ors), AsYaml(ands))
-
+			for j := 0; j < len(ors); j++ {
+				ors[j].And = append(ors[j].And, ands...)
+			}
+			r.Or = ors
+			r.And = nil
 		}
 	}
 	return r, nil
