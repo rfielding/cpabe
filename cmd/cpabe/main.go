@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -10,10 +9,9 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"strings"
 	"time"
 
-	"github.com/go-yaml/yaml"
+	"github.com/rfielding/cpabe/lang"
 	"golang.org/x/crypto/bn256"
 )
 
@@ -172,36 +170,54 @@ type Cert struct {
 }
 
 type Padlock struct {
-	Rule  interface{}    `json:"rule"`
-	Cases []*PadlockCase `json:"padlock"`
+	Policy *lang.Policy   `json:"policy"`
+	Cases  []*PadlockCase `json:"padlock"`
 }
 
-func NewPadlock(y interface{}, keys map[string][]byte) (*Padlock, error) {
-	var err error
-
-	// Transform policy into or-of-and
-	y, err = EnumeratePolicy(y)
-	if err != nil {
-		return nil, err
+func NewPadlock(caPub1 *bn256.G1, S *big.Int, p *lang.Policy, keys map[string][]byte) (*Padlock, error) {
+	reverse := func(arr []*PadlockCase) []*PadlockCase {
+		for i, j := 0, len(arr)-1; i < j; i, j = i+1, j-1 {
+			arr[i], arr[j] = arr[j], arr[i]
+		}
+		return arr
 	}
-
 	cases := make([]*PadlockCase, 0)
-	if ya, yok := y.([]interface{}); yok {
-		for i := 2; i < len(ya); i += 3 {
-			name := ya[i].(string)
-			keys := ya[i+1].([]interface{})
-			rule := ya[i+2].([]interface{})
-			for r := 1; r < len(rule); r++ {
-				_ = r
-				_ = name
-				_ = keys
+	for _, u := range p.Unlocks {
+		if u.Requirement.Or != nil {
+			required := make([]string, 0)
+			// Get the subset of keys that this unlock produces
+			keyMap := make(map[string][]byte)
+			for _, key := range u.Keys {
+				k := string(key)
+				keyMap[k] = keys[k]
+			}
+			for i := 0; i < len(u.Requirement.Or); i++ {
+				for a := 0; a < len(u.Requirement.Or[i].And); a++ {
+					required = append(
+						required,
+						u.Requirement.Or[i].And[a].Is,
+					)
+				}
+				cases = append(cases, MakePadlockCase(caPub1, S, required, keyMap))
 			}
 		}
 	}
+	// padlock cases accumulate keys, so reverse the
+	// list to get the most specific match
+	cases = reverse(cases)
 	return &Padlock{
-		Rule:  y,
-		Cases: cases,
+		Policy: p,
+		Cases:  cases,
 	}, nil
+}
+
+func (p *Padlock) Unlock(c *Cert) map[string][]byte {
+	for _, v := range p.Cases {
+		if v.IsSatisfied(c) {
+			return UnlockCase(v, c)
+		}
+	}
+	return nil
 }
 
 type PadlockCase struct {
@@ -269,6 +285,15 @@ func MakePadlockCase(caPub1 *bn256.G1, S *big.Int, attrs []string, Kresults map[
 		FilePubM: Pub1(f).Marshal(),
 		Fixes:    fixes,
 	}
+}
+
+func (pc *PadlockCase) IsSatisfied(c *Cert) bool {
+	for _, k := range pc.Required {
+		if c.Shares[k] == nil {
+			return false
+		}
+	}
+	return true
 }
 
 func UnlockCase(padlockCase *PadlockCase, cert *Cert) map[string][]byte {
@@ -365,337 +390,78 @@ func AsJsonSmall(v interface{}) string {
 	return string(j)
 }
 
-/*
-  Policy language:
-
-  Policy function:
-
-  (Policy ($LABEL,$FOREGROUND,$BACKGROUND)
-    ($ACTION_i)+
-  )
-
-  // To create labels on policies
-  // The KEYGRANT specifies which keys need to be calculated on success,
-  // which may be zero or more than one.
-  $ACTION_i := $NAME $KEYGRANT $BOOL
-
-  // To calculate access keys
-  $BOOL := (and $BOOL+)
-  $BOOL := (or $BOOL+)
-  // At least one val must exist (field is separated to make policy less verbose)
-  $BOOL := (some $FIELD $VAL_i+)
-  // Every val must exist
-  $BOOL := (every $FIELD $VAL_i+)
-
-  // An ! on the start of a field is just literally used, and lets us express definite negation
-
-  Example translation:
-
-  Read:  age:21+ citizenship:NL !citizenship:SA !citizenship:PK
-  Read:  age:21+ citizenship:US !citizenship:SA !citizenship:PK
-  Write: age:21+ citizenship:NL !citizenship:SA !citizenship:PK email:r@gmail.com
-  Write: age:21+ citizenship:NL !citizenship:SA !citizenship:PK email:d@gmail.com
-  Write: age:21+ citizenship:US !citizenship:SA !citizenship:PK email:r@gmail.com
-  Write: age:21+ citizenship:US !citizenship:SA !citizenship:PK email:d@gmail.com
-
-  Note that the number of cases can get large with the use of "some" and "or".
-  But once we have a key for a case (ie: Read,Write), we can skip all such cases.
-
-*/
 var examplePolicies = []string{`
-[ Policy, [Adult/21+,white,black],
-  IsLegal,[Read],[
-    and, [every, age, 21+], [some, citizenship, NL, US], [every, no-citizenship, SA, PK]
-  ],
-  IsOwner,[Write],[
-    and, [every, email, r@gmail.com], IsLegal
-  ],
-]
-`}
-
-func BIsOp(b interface{}, op string) bool {
-	barr, barrok := b.([]interface{})
-	if barrok {
-		return barr[0] == op
-	}
-	return false
-}
-
-func EnumerateBools(b interface{}, env map[string]interface{}) (interface{}, error) {
-	arr, arrOk := b.([]interface{})
-	if !arrOk {
-		return b, nil
-	}
-	if len(arr) == 0 {
-		return b, fmt.Errorf("zero length arrays not allowed in boolean condition")
-	}
-	// Depth first recursion
-	for i := 1; i < len(arr); i++ {
-		bChild, err := EnumerateBools(arr[i], env)
-		if err != nil {
-			return b, err
-		}
-		arr[i] = bChild
-	}
-	// Strings in and/or must be references
-	if arr[0] == "and" || arr[0] == "or" {
-		// Flatten out references literally
-		for i := 1; i < len(arr); i++ {
-			ref, refOk := arr[i].(string)
-			if refOk && env[ref] != nil {
-				arr[i] = env[ref]
-			}
-		}
-	}
-	// The every keyword is a macro for AND, to stop repeating the attribute name repeatedly
-	if arr[0] == "every" {
-		// Flatten every into and cases
-		newArr := make([]interface{}, len(arr)-1)
-		if len(arr) < 3 {
-			return false, fmt.Errorf("'every' keyword is called like [every $FIELD $Vi+]")
-		}
-		fieldName := arr[1]
-		for i := 2; i < len(arr); i++ {
-			newArr[i-1] = fmt.Sprintf("%s:%s", fieldName, arr[i])
-		}
-		newArr[0] = "and"
-		return newArr, nil
-	}
-	// Some is a macro to reduce the verbosity of attribute names in or case
-	if arr[0] == "some" {
-		// Flatten every into or cases
-		newArr := make([]interface{}, len(arr)-1)
-		if len(arr) < 3 {
-			return false, fmt.Errorf("'some' keyword is called like [some $FIELD $Vi+]")
-		}
-		fieldName := arr[1]
-		for i := 2; i < len(arr); i++ {
-			newArr[i-1] = []interface{}{"and", fmt.Sprintf("%s:%s", fieldName, arr[i])}
-		}
-		newArr[0] = "or"
-		return newArr, nil
-	}
-	// Sanity check
-	if arr[0] == "and" || arr[0] == "or" {
-		// This is the only case that should happen now
-	} else {
-		return b, fmt.Errorf("There should only be and/or expressions at this point in the transformation")
-	}
-	// Everything is and/or or an attribute
-	// Sort attributes, before and, before or
-	for i := 1; i < len(arr); i++ {
-		for j := 1; j < len(arr); j++ {
-			isArri, iok := arr[i].([]interface{})
-			isArrj, jok := arr[j].([]interface{})
-			// Attributes are less than arrays
-			if !iok && jok {
-				tmp := arr[i]
-				arr[i] = arr[j]
-				arr[j] = tmp
-			}
-			// Sort attributes
-			if !iok && !jok {
-				is, isok := arr[i].(string)
-				js, jsok := arr[j].(string)
-				if isok && jsok && strings.Compare(is, js) > 0 {
-					tmp := arr[i]
-					arr[i] = arr[j]
-					arr[j] = tmp
-				}
-			}
-			// and before or
-			if iok && jok {
-				if len(isArri) == 0 {
-					return b, fmt.Errorf("Expecting non-empty array in booleans")
-				}
-				if len(isArrj) == 0 {
-					return b, fmt.Errorf("Expecting non-empty array in booleans")
-				}
-				tmp := arr[i]
-				arr[i] = arr[j]
-				arr[j] = tmp
-			}
-		}
-	}
-
-	flattenNested := func(arr []interface{}, op string) ([]interface{}, error) {
-		// Merge nested and adjacent ops
-		if arr[0] == op {
-			newArr := []interface{}{op}
-			for i := 1; i < len(arr); i++ {
-				nestArr, ok := arr[i].([]interface{})
-				if ok && len(nestArr) == 0 {
-					return arr, fmt.Errorf("nested %s array needs at least one element", op)
-				}
-				// something to flatten
-				if ok && nestArr[0] == op {
-					// flatten its children into ours
-					for j := 1; j < len(nestArr); j++ {
-						newArr = append(newArr, nestArr[j])
-					}
-				} else {
-					newArr = append(newArr, arr[i])
-				}
-			}
-			return newArr, nil
-		}
-		return arr, nil
-	}
-
-	// Flatten nested and
-	arr, err := flattenNested(arr, "and")
-	if err != nil {
-		return arr, err
-	}
-
-	// Flatten nested or
-	arr, err = flattenNested(arr, "or")
-	if err != nil {
-		return arr, err
-	}
-
-	distribute := func(arr []interface{}) ([]interface{}, error) {
-		if arr[0] == "or" {
-			return arr, nil
-		}
-		start := 0
-		// handle: [and, ..., [or, ...]]
-		for i := start + 2; i < len(arr); i++ {
-			if arri, iok := arr[i].([]interface{}); iok && BIsOp(arr[i], "or") {
-				// ["and",...,["or",...],...]
-				for start < i && !BIsOp(arr[start+1], "or") {
-					for j := 1; j < len(arri); j++ {
-						arr[i].([]interface{})[j] = append(
-							arr[i].([]interface{})[j].([]interface{}),
-							arr[start+1],
-						)
-					}
-					arr[i] = arri
-					start++
-					arr[start] = "and"
-				}
-			}
-		}
-		arr = arr[start:]
-
-		/// XXXXX There are major problems here, and I have given up on correct OR conditions
-		/// for the moment.  Using raw interface{} is just too much here.
-		start = 0
-		for i := start + 2; i < len(arr); i++ {
-			arri, iok := arr[i].([]interface{})
-			arrs, sok := arr[start+1].([]interface{})
-			if iok && sok && arri[0] == "or" && arrs[0] == "or" {
-				for ii := 1; ii < len(arri); ii++ {
-					for si := 1; si < len(arri); si++ {
-					}
-				}
-			}
-		}
-
-		// If we are at:  ["and",["or",...]], then just ["or",...]
-		if len(arr) == 2 && arr[0] == "and" && BIsOp(arr[1], "or") {
-			return arr[1].([]interface{}), nil
-		}
-		return arr, nil
-	}
-
-	arr, err = distribute(arr)
-	if err != nil {
-		return arr, err
-	}
-	return arr, nil
-}
-
-func EnumeratePolicy(p interface{}) (interface{}, error) {
-	topLevel, topLevelOk := p.([]interface{})
-	if !topLevelOk {
-		return p, fmt.Errorf("We expect a json/yaml LISP as array at top level")
-	}
-	if len(topLevel) < 3 {
-		return p, fmt.Errorf("We expect at least [Policy, LABELS, (Ni Vi Bi)+")
-	}
-	topCommand, topCommandOk := topLevel[0].(string)
-	if !topCommandOk {
-		return p, fmt.Errorf("We expect to call [Policy, ...] at top level")
-	}
-	if topCommand != "Policy" {
-		return p, fmt.Errorf("We expect [Policy,...] to be called at the top")
-	}
-	labels, labelsOk := topLevel[1].([]interface{})
-	if !labelsOk {
-		return p, fmt.Errorf("We expect security labels like [Policy,[SECRETSQUIRREL,white,red],... at the top")
-	}
-
-	log.Printf("label: %s, fg: %s, bg: %s", labels[0], labels[1], labels[2])
-	env := make(map[string]interface{})
-	for idx := 2; idx < len(topLevel); idx += 3 {
-		name, nameOk := topLevel[idx].(string)
-		if !nameOk {
-			return p, fmt.Errorf("Expecting a condition name at index %d of top level call.", idx)
-		}
-		keys, keysOk := topLevel[idx+1].([]interface{})
-		if !keysOk {
-			return p, fmt.Errorf("Expecting the names of keys to return on this condition at index %d.", idx)
-		}
-		keySet := make([]string, 0)
-		for i, v := range keys {
-			k, kok := v.(string)
-			if !kok {
-				return p, fmt.Errorf("We are expecting a named key in array at %d[%d]", idx, i)
-			}
-			keySet = append(keySet, k)
-		}
-		bools, boolsOk := topLevel[idx+2].([]interface{})
-		if !boolsOk {
-			return p, fmt.Errorf("Should have a boolean condition at %d", idx)
-		}
-		newBools, err := EnumerateBools(bools, env)
-		if err != nil {
-			return p, fmt.Errorf("When checking boolean condition: %v", err)
-		}
-		topLevel[idx+2] = newBools
-		env[name] = newBools
-	}
-
-	return p, nil
+---
+display: 
+  label: SECRET//SQUIRREL
+  background: red
+  foreground: white
+unlocks: 
+  is_legal: 
+    keys: 
+    - Read
+    requirement:
+      and:
+      - every:
+        - age
+        - adult
+      - some:
+        - citizen
+        - US
+        - NL
+      - every:
+        - not-citizen
+        - SA
+        - PK
+  is_owner: 
+    keys: 
+    - Write
+    - Read
+    requirement:
+      and:
+      - require: is_legal
+      - some:
+        - email
+        - r@gmail.com
+        - d@gmail.com
+`,
 }
 
 func main() {
-	var y interface{}
-	err := yaml.Unmarshal([]byte(examplePolicies[0]), &y)
-	if err != nil {
-		panic(err)
-	}
-	y2, err := EnumeratePolicy(y)
-	log.Printf("%s", AsJsonSmall(y2))
+	policy, err := lang.Parse(examplePolicies[0])
 	if err != nil {
 		panic(err)
 	}
 
-	// Using the CA password to create the secret,
-	// it's up to CA to have enough entropy.
+	// Round-trip test
+	keyMap := map[string][]byte{
+		"Read":  B(Rand()),
+		"Write": B(Rand()),
+	}
+
 	S := V("squeamish ossifrage", Const(0))
 	caPub1 := Pub1(S)
 
 	// Some attributes that we want the CA to issue into a cert
-	allAttrs := []string{"citizen:US", "age:adult", "email:rob.fielding@gmail.com"}
+	allAttrs := []string{
+		"citizen:US",
+		"age:adult",
+		"email:r@gmail.com",
+		"not-citizen:SA",
+		"not-citizen:PK",
+	}
 	exp := time.Now().Add(time.Duration(24*60) * time.Hour).Unix()
 	cert := Issue(S, allAttrs, exp)
 
-	// Round-trip test
-	Kr := B(Rand())
-	Kw := B(Rand())
-
-	attrs := []string{"citizen:US", "age:adult"}
-	padlockCase := MakePadlockCase(caPub1, S, attrs, map[string][]byte{"R": Kr, "W": Kw})
-	unlock := UnlockCase(padlockCase, cert)["R"]
-
-	log.Printf("\n         Kr:%v\n\nunlockCase:%v", Hex(Kr), Hex(unlock))
-
-	if bytes.Compare(Kr, unlock) != 0 {
-		panic("decrypt and encrypt are inconsistent")
+	// Make a padlock
+	padlock, err := NewPadlock(caPub1, S, policy, keyMap)
+	if err != nil {
+		panic(err)
 	}
 
-	log.Printf("%s", AsJson(cert))
-	log.Printf("%s", AsJson(padlockCase))
+	// TODO: write padlock.Unlock that walks
+	// cases and returns map of keys
+	keys := padlock.Unlock(cert)
+	log.Printf("Keys: %v", AsJson(keys))
+
 }
