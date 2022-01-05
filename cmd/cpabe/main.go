@@ -459,7 +459,7 @@ func main() {
 		panic(err)
 	}
 
-	log.Print("CA:\n%s", AsJson(caPub1))
+	log.Printf("CA:\n%s", hex.EncodeToString(caPub1.Marshal()))
 
 	log.Printf("Cert:\n%s", AsJson(cert))
 
