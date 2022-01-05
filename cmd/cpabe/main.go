@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"time"
 
@@ -459,13 +458,21 @@ func main() {
 		panic(err)
 	}
 
-	log.Printf("CA:\n%s", hex.EncodeToString(caPub1.Marshal()))
+	fmt.Printf("\nCA\n```\n")
+	fmt.Printf("\n%s\n", hex.EncodeToString(caPub1.Marshal()))
+	fmt.Printf("```\n")
 
-	log.Printf("Cert:\n%s", AsJson(cert))
+	fmt.Printf("Cert\n```json\n")
+	fmt.Printf("\n%s\n", AsJson(cert))
+	fmt.Printf("```\n")
 
-	// TODO: write padlock.Unlock that walks
-	// cases and returns map of keys
+	fmt.Printf("Padlock\n```yaml\n")
+	fmt.Printf("\n%s\n", examplePolicies[0])
+	fmt.Printf("```\n")
+
 	keys := padlock.Unlock(cert)
-	log.Printf("Keys: %v", AsJson(keys))
+	fmt.Printf("Keys\n```json\n")
+	fmt.Printf("Keys: %v", AsJson(keys))
+	fmt.Printf("```\n")
 
 }
