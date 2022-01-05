@@ -1,3 +1,20 @@
+# Ciphertext Policy Attribute Based Encryption
+
+This is doing a basic variation on Identity Based Encryption,
+where we can do key derivations based on a boolean combination
+of attested attributes.  This uses the `bn256` elliptic curve
+pairing to do it.  The basic idea is that when creating 
+the padlock, a nonce it used to pair with the public
+key of the CA.  When a user unlocks, f and s are effectively
+swapped.
+
+```
+e(f G1, a0 s G2 + a2 s G2 + ... + aN s G2)
+=
+e(s G1, a0 f G2 + a2 f G2 + ... + aN f G2)
+=
+e(G1, G2)^{f a0 s + f a1 s + ... f s G2}
+```
 
 CA
 ```
@@ -9,14 +26,14 @@ Write User Cert W
 
 {
   "pubca": "ZPjti/HUc4BBbKXqYXiDejuqkmx8COcPTdArlcJoDO0m6V6YcH3JDgc0m374Yv6i6zqsp/jP23+vHlY0EE+9NA==",
-  "nonce": "DMGc1mCtKiunquCa/Kkbo0B+9c9wMQpDtPOkeSLif30=",
-  "exp": 1646597049,
+  "nonce": "NF3vH5/RViYFl5uFB9cjU9VQdAf1lOCFjbf9bAwjzCQ=",
+  "exp": 1646597405,
   "shares": {
-    "age:adult": "Z/NNhuunMF6l2XTc4Lrid4gWkGHpljHufiDcd/W0fygbEL3Nr3DKpJpMSfI/Zl22XPiP/mrZ0dZcXzajUaxhC3DgAtrcJYTJQnGHGaXdRDGnX4znOfIxA28jm3WKNzc7E9Kqi2TQAvIbq/zReoJ9tw+EGf7hvx2kMJU6ulCv0N0=",
-    "citizen:US": "UEbrbzoHIz2e6Fs592BLVttIhCg1b/LYHv6HcH7JfuM1pY0LXHK8FGixMdDrqdGWpXWd1Qcfznrzcs1O6g8EdHexZ2YvljgLMCkwqNswI6NKPOE7ssrrAdaQiOuqPz90B9b2+brbo5/Utj7JQAc9AXV/JRCEhB85iYhWaZjEnBc=",
-    "email:r@gmail.com": "K6Gjju3pOd+W0CP1YlBIidH8nseTWJXC8WZNYUaDCdY13ij87hvtbr6o9v00eDy31OtKOVCB9LZFqUKre9muHQaIazgcmyKA5EBanCxC/T2wfO4XLNTzfCYLWWhbsd+FTkU49XuCr6sb9TkYBSnfe77J2IhhCd3oaMj2SKm3uD0=",
-    "not-citizen:PK": "RotqanVTBA6zs8GY/z24wPRUP48vRmFHs2w1IC3SXPo/PeyeG7b3h+mV2xuQLlDPXU2etnlAP4Z6ub9QGmTuDFZ2KXUiX16Xust+/uD3/gm3mQCxhV0wmbdmcfH1HUG6W1M+LU1WAj/byJAkWG10UFzw4Vg5UHKEno+2Y6JcJeQ=",
-    "not-citizen:SA": "O9827KIo1c0HZ98LLywcczb1FILI0glWudg1Jz/iLCBSKSu+ZFYcP9mARVW9EfoNx5GlaDxqnpQzPJfoH59g2ge706k+5cugZymfW5f4PqqKjQtQPFt6KZ5nZP8bveMFIVY5SqPnb0ySXWVUF3ayW2dGutmGc+azUE5ZIgo8FoQ="
+    "age:adult": "W3ZdgrMk6EGXjb77cXUhOdEHyU2oorGHq0xlcy+pLFps2p4C01E0zrJ6wMzmQs/HFm9eeaZYPG/bdJqev0psUY7aEel0sBl1kp6IVW6MHyz4DeZyv5T+qNtYtyUdFeBwdIRnK+pQgdyn5kNFAZbEnQCe/OXqkiJ13pYA1tm4Q70=",
+    "citizen:US": "Ue3EcWtAcFEEDEY6cMGZ8W/ihJR8boFf75FSyRzTS+5ijbkjBzolHwgrL7McZTzyyNNbldnPxbvXnsg+eY5WzgAjJTgDgcpqouanusVaup9B0R8cpU+cRpHjaiD0l12mVRJN08p3FM/axYN0eEkP3TcaQP7Ig8nglG37d00Rj2g=",
+    "email:r@gmail.com": "HY7/Lb676pnj1fg8est1HSQM+h/LNe2ock8yP+CHPQd3zA/YyuuVL1ZxZ97chojb0chI+TdAL4QNO+iFA35ne3Y0jyavCOBZZcqulfoYg5BM8f/ibysDNtvL079uQVQcNMmoiY+JT+cQGVktK/vHreEnhLbuEnt8cNSirTSD2z0=",
+    "not-citizen:PK": "A6271AVAQVE47t9tJa2a9vSp5Tio90Tw4OrFsQGI+NAiL+jOvaey6Zjb5jBww/PREzP4YNGSWJqydD8KDoMF7mnTiLgSaTn+CMCu7EnVbIyiCGJUnT4mWvcS+ND72xKHVatQk/utNnm12Jfk67PAkTMZHRX4GID/uGosQq0lP7I=",
+    "not-citizen:SA": "IBV56+ipGASoQH02rp7nE8n2tTzGgTOV5+os/m3S9QdcU/GbxRwv8yK+n8miYFpswO9dV1ulq5g2j/0gNCn6kkz0xcLmfb0MXaviCFXK+VCEuIc/qmQa+xGMrAOCuWazK9FshBjUMrkLNk4SNzIG6ktJ+IQCRtgbEfSHCrhVt4s="
   }
 }
 ```
@@ -25,14 +42,14 @@ Write User Cert R
 
 {
   "pubca": "ZPjti/HUc4BBbKXqYXiDejuqkmx8COcPTdArlcJoDO0m6V6YcH3JDgc0m374Yv6i6zqsp/jP23+vHlY0EE+9NA==",
-  "nonce": "GXfxWRY2X1n2IkpKOO19q0+Qa7acx0RsW1R8Dm8jk/8=",
-  "exp": 1646597049,
+  "nonce": "aGr3QWt9E7zifPrEeheTWmIajIrN5jz1Uz4yd50Eq1A=",
+  "exp": 1646597405,
   "shares": {
-    "age:adult": "inerMo+ncq58LwR++XXiNcGr4yGKI0iHM/tH6nSNMlBcSdNyRE5icyZWYfXGSytT+Oblhrv0vCkg7WfwchITBEAXsToorGA4qUwtS8ELHzFK8P+s++9YK2D88UE6I/mVP/Th6D9xuRPpV0jtgi5HbvboPd9icEBOwC/ZHK5P7dM=",
-    "citizen:US": "h9vu039x00SpZIT6ZfMi5De1FXC2d9k945WU7f76FClsisg8qSPGqzifsqVizG12ra7vrhVHhWVqlf3uCEfx24Hu0gVsDWZea6P+pgt69A5UGl9O79UJuDNlIf48c78ZOJUo2uarAMHpvktikfhScHwUIBh/aBnprZyWJ2D7Bxc=",
-    "email:e@gmail.com": "T4cNNVWjJv70KreHhqg1rVL6AhF1/yWROulexxK/KY9l5Xh5yvYrkxAgdkUBlKuubXzgoPJKtZW1BF/8d/4LynebF4QctY42+Y8DHLUfxaP2VNvsBd2JzqrlN4IO98KfFr8XREiHytFraHm9WPnrabdnShfYfXSz179c42XHKU4=",
-    "not-citizen:PK": "QNYsncP1KRKz5E9f1FcsmR6eCLnpNI6JvD0UeN2aDCAE7uWmwjqIF6glxt2nIiDpfdZy4osBzTAdBBQlNIs6JxkV7aoV8Ut85nWDzCN/s8MCg2f5laXDuqfN4CDUYU6CBEMsfeFIn5++jDBzHiZ270Hs+hcRaeQYB+LRqkS6H+k=",
-    "not-citizen:SA": "GaN5r8EgU9L3SxR0haZeP/2ccm8P/fAGixU5V57kQi93vm/Q12lin8BO5FI7h/SfsG3sy1w04T6muDLnCOx0+xDgpqApOkM4Zsy3eaKg2hPtwgpxZMrFn+G00gWnBnQFQCq/M9JM6W7qFq2vvrexiQLOLu79GxdWh4Vl17pIcSQ="
+    "age:adult": "B+rmw0isfr+07d07zGbrTSOiF19rUo32gC9ao0hTAiKI5gBr0xB2d6G6/sXQkGZiv7kBs3IfCCTtElPM8yqUiCmxsJRdRLL1+zZUbK3RjZLIazGiVQLIzsaJyJi7N1TZZP5EsG8uaxfah+EEh66STpj4cZSGGWegu+PhCfuoq/o=",
+    "citizen:US": "dHOXOAY8POIxTkPQEQeLeZ7rHpJrsnnSFXxlZbk1bZJq4J+KmL0XFmZMvgx7RVlmw5Y6vSdP13c3de730MxiclXr5CDOS/L5DO999wvZPWsY8UGhEyAP/kriVwTBPwaFXUMKGv20wPBDer2HgNPLwuS2QkoL1vfKLSJdOBk7no8=",
+    "email:e@gmail.com": "DWvf+NVbiUQk0V4pYsA73UI7UAqPQNAeBLoOEk9B6jkD+1s7EHrsaSA+N7qbmeBA0K6WwHDPe73zWelKUo7O/SPvezDSbBs8iQ8hLz83C3ko3Ok0IsNNoYjXkp81mcHWLDTXaeadK2RsynK5DOhfLsxTd4FnXDvg0KQ9vGDQyaw=",
+    "not-citizen:PK": "P/KtEXMsVx5TLn8A1IE2AdVow/UCAWoYufU3NXcKIk+EpOLMCnTwQSURKv36N923EXACIfF7u06F3kzlwR/GbQbcl0pFyUlOyRcsfTjTdDrDmq192Tm6+OGMiN+N0VIrSv+GDjpFwherpN9tLsMPlD7gDTrJSTekXJ831hMLTlM=",
+    "not-citizen:SA": "VJCxqJxmjFZjfNwosw0OyBXIUoXb8J5IVyj562A6rKQqkqKoxUrjW2UtL8P98QPSjWADFrUg/6cS887MCDdUI3kGnOBr++etkGuFuirZ6CanBp6oKa4jBCBopaPN7bASaLVexw2fYzYo8XsL5iZxfmDjQbDOveyYkpS7o04KItA="
   }
 }
 ```
@@ -79,22 +96,22 @@ Expected keys
 ```yaml
 
 {
-  "Read": "Kdx/8RSFlQru8eZrJoUNE0kWvxb1ZVFHQGrTPcLY22A=",
-  "Write": "fXZk8mASLqC+l6vfDJqhuE7wmfzC/FbiTdjuZEPk13c="
+  "Read": "87Dm5YtuhLS/1IE+fOSLUFFyWd05JmF+57Gmc4mywuk=",
+  "Write": "Xa4/85bW2jisrigl+mjZCKvfZZegjjpyu29+Ip5Ndc8="
 }
 ```
 Keys yielded by unlock with certW
 ```json
 
 {
-  "Read": "Kdx/8RSFlQru8eZrJoUNE0kWvxb1ZVFHQGrTPcLY22A=",
-  "Write": "fXZk8mASLqC+l6vfDJqhuE7wmfzC/FbiTdjuZEPk13c="
+  "Read": "87Dm5YtuhLS/1IE+fOSLUFFyWd05JmF+57Gmc4mywuk=",
+  "Write": "Xa4/85bW2jisrigl+mjZCKvfZZegjjpyu29+Ip5Ndc8="
 }
 ```
 Keys yielded by unlock with certR
 ```json
 
 {
-  "Read": "Kdx/8RSFlQru8eZrJoUNE0kWvxb1ZVFHQGrTPcLY22A="
+  "Read": "87Dm5YtuhLS/1IE+fOSLUFFyWd05JmF+57Gmc4mywuk="
 }
 ```
