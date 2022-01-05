@@ -191,23 +191,25 @@ func ValidateRequirement(r *Requirement, unlocks map[string]*Unlock) (*Requireme
 		}
 		// now, we can merge `or`s within `and`
 	}
-	// merge `or` in `and`
-	if r.And != nil {
-		ands := make([]*Requirement, 0)
-		ors := make([]*Requirement, 0)
-		for _, s := range r.And {
-			if s.Or != nil {
-				for j := 0; j < len(s.Or); j++ {
-					ors = append(
-						ors,
-						&Requirement{And: []*Requirement{s.Or[j]}},
+	// TODO:
+	// "foil" into first entry, as we are left with
+	// `and` over `or`
+	if r.And != nil && len(r.And) > 1 {
+		accumulated := make([]*Requirement, 0)
+		if r.And[0].Or != nil {
+			for i := 0; i < len(r.And[0].Or); i++ {
+				for j := 0; j < len(r.And[1].Or); j++ {
+					rCopy := &Requirement{}
+					DeepCopy(rCopy, r.And[0].Or[i])
+					rCopy.And = append(
+						rCopy.And,
+						r.And[1].Or[j],
 					)
+					accumulated = append(accumulated, rCopy)
 				}
-			} else {
-				ands = append(ands, s)
 			}
-		}
-		if len(ors) > 1 {
+			r.Or = accumulated
+			r.And = nil
 		}
 	}
 	return r, nil
