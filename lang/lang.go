@@ -189,6 +189,26 @@ func ValidateRequirement(r *Requirement, unlocks map[string]*Unlock) (*Requireme
 			r.Or = ors
 			r.And = nil
 		}
+		// now, we can merge `or`s within `and`
+	}
+	// merge `or` in `and`
+	if r.And != nil {
+		ands := make([]*Requirement, 0)
+		ors := make([]*Requirement, 0)
+		for _, s := range r.And {
+			if s.Or != nil {
+				for j := 0; j < len(s.Or); j++ {
+					ors = append(
+						ors,
+						&Requirement{And: []*Requirement{s.Or[j]}},
+					)
+				}
+			} else {
+				ands = append(ands, s)
+			}
+		}
+		if len(ors) > 1 {
+		}
 	}
 	return r, nil
 }
