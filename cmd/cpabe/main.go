@@ -472,7 +472,7 @@ func main() {
 
 	keys := padlock.Unlock(cert)
 	fmt.Printf("Keys\n```json\n")
-	fmt.Printf("Keys: %v", AsJson(keys))
+	fmt.Printf("\n%s", AsJson(keys))
 	fmt.Printf("```\n")
 
 }
