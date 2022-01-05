@@ -71,7 +71,7 @@ type Policy struct {
 
 type Unlock struct {
   Keys []Key
-  Requirement Requirement
+  Requirement *Requirement
 }
 
 type Key string // name of what was unlocked
@@ -79,9 +79,9 @@ type Key string // name of what was unlocked
 // Recursive node type. Blank by default during serialization
 type Requirement struct {
   V string // leaf statement in the form: field:value
-  Require Requirement // reference that can be literally pulled in
-  And []Requirement
-  Or []Requirement // ultimately, everything will be: [or [and ...],[and ...]]
+  Require *Requirement // reference that can be literally pulled in
+  And []*Requirement
+  Or []*Requirement // ultimately, everything will be: [or [and ...],[and ...]]
   Some Some // [some field v0 v1] -> [or field:v0 field:v1]
   Every Every // [every field v0 v1] -> [and field:v0 field:v1]
 }
