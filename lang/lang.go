@@ -125,7 +125,8 @@ func ValidateRequirement(r *Requirement, unlocks map[string]*Unlock) (*Requireme
 			}
 		}
 		for i := 1; i < len(r.Some); i++ {
-			r.Or = append(r.Or, &Requirement{Is: fmt.Sprintf("%s:%s", r.Some[0], r.Some[i])})
+			rName := &Requirement{Is: fmt.Sprintf("%s:%s", r.Some[0], r.Some[i])}
+			r.Or = append(r.Or, rName)
 		}
 		r.Some = nil
 	}
