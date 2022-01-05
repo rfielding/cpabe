@@ -194,23 +194,25 @@ func ValidateRequirement(r *Requirement, unlocks map[string]*Unlock) (*Requireme
 	// TODO:
 	// "foil" into first entry, as we are left with
 	// `and` over `or`
-	if r.And != nil && len(r.And) > 1 {
+	for len(r.And) > 1 && r.And[0].Or != nil && r.And[1] != nil {
 		accumulated := make([]*Requirement, 0)
-		if r.And[0].Or != nil {
-			for i := 0; i < len(r.And[0].Or); i++ {
-				for j := 0; j < len(r.And[1].Or); j++ {
-					rCopy := &Requirement{}
-					DeepCopy(rCopy, r.And[0].Or[i])
-					rCopy.And = append(
-						rCopy.And,
-						r.And[1].Or[j],
-					)
-					accumulated = append(accumulated, rCopy)
-				}
+		for i := 0; i < len(r.And[0].Or); i++ {
+			for j := 0; j < len(r.And[1].Or); j++ {
+				rCopy := &Requirement{}
+				DeepCopy(rCopy, r.And[0].Or[i])
+				rCopy.And = append(
+					rCopy.And,
+					r.And[1].Or[j],
+				)
+				accumulated = append(accumulated, rCopy)
 			}
-			r.Or = accumulated
-			r.And = nil
 		}
+		r.And[1].Or = accumulated
+		r.And = r.And[1:]
+	}
+	if len(r.And) == 1 && r.And[0].Or != nil {
+		r.Or = r.And[0].Or
+		r.And = nil
 	}
 	return r, nil
 }
