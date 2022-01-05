@@ -459,6 +459,8 @@ func main() {
 		panic(err)
 	}
 
+	log.Print("CA:\n%s", AsJson(caPub1))
+
 	log.Printf("Cert:\n%s", AsJson(cert))
 
 	// TODO: write padlock.Unlock that walks
