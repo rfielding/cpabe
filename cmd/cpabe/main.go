@@ -459,6 +459,8 @@ func main() {
 		panic(err)
 	}
 
+	log.Printf("Cert:\n%s", AsJson(cert))
+
 	// TODO: write padlock.Unlock that walks
 	// cases and returns map of keys
 	keys := padlock.Unlock(cert)
