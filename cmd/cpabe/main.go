@@ -441,16 +441,26 @@ func main() {
 	S := V("squeamish ossifrage", Const(0))
 	caPub1 := Pub1(S)
 
+	allAttrsR := []string{
+		"citizen:US",
+		"age:adult",
+		"email:e@gmail.com",
+		"not-citizen:SA",
+		"not-citizen:PK",
+	}
+
 	// Some attributes that we want the CA to issue into a cert
-	allAttrs := []string{
+	allAttrsW := []string{
 		"citizen:US",
 		"age:adult",
 		"email:r@gmail.com",
 		"not-citizen:SA",
 		"not-citizen:PK",
 	}
+
 	exp := time.Now().Add(time.Duration(24*60) * time.Hour).Unix()
-	cert := Issue(S, allAttrs, exp)
+	certW := Issue(S, allAttrsW, exp)
+	certR := Issue(S, allAttrsR, exp)
 
 	// Make a padlock
 	padlock, err := NewPadlock(caPub1, S, policy, keyMap)
@@ -462,16 +472,25 @@ func main() {
 	fmt.Printf("\n%s\n", hex.EncodeToString(caPub1.Marshal()))
 	fmt.Printf("```\n")
 
-	fmt.Printf("Cert\n```json\n")
-	fmt.Printf("\n%s\n", AsJson(cert))
+	fmt.Printf("Write User Cert\n```json\n")
+	fmt.Printf("\n%s\n", AsJson(certW))
 	fmt.Printf("```\n")
 
 	fmt.Printf("Padlock\n```yaml\n")
 	fmt.Printf("\n%s\n", examplePolicies[0])
 	fmt.Printf("```\n")
 
-	keys := padlock.Unlock(cert)
-	fmt.Printf("Keys yielded by unlock with cert\n```json\n")
+	fmt.Printf("Expected keys\n```yaml\n")
+	fmt.Printf("\n%s\n", AsJson(keyMap))
+	fmt.Printf("```\n")
+
+	keys := padlock.Unlock(certW)
+	fmt.Printf("Keys yielded by unlock with certW\n```json\n")
+	fmt.Printf("\n%s\n", AsJson(keys))
+	fmt.Printf("```\n")
+
+	keys = padlock.Unlock(certR)
+	fmt.Printf("Keys yielded by unlock with certR\n```json\n")
 	fmt.Printf("\n%s\n", AsJson(keys))
 	fmt.Printf("```\n")
 

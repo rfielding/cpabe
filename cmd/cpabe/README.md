@@ -4,19 +4,19 @@ CA
 
 64f8ed8bf1d47380416ca5ea6178837a3baa926c7c08e70f4dd02b95c2680ced26e95e98707dc90e07349b7ef862fea2eb3aaca7f8cfdb7faf1e5634104fbd34
 ```
-Cert
+Write User Cert
 ```json
 
 {
   "pubca": "ZPjti/HUc4BBbKXqYXiDejuqkmx8COcPTdArlcJoDO0m6V6YcH3JDgc0m374Yv6i6zqsp/jP23+vHlY0EE+9NA==",
-  "nonce": "slQ7lXKtitTZdy7w/+LbGJB6GGnssyJvei3HjfB4xwA=",
-  "exp": 1646596017,
+  "nonce": "YePYgNSi92Cq5IaF+iMp5Q8aYfeWTqkOfZzkUYe5UZc=",
+  "exp": 1646596838,
   "shares": {
-    "age:adult": "C917uptU8Axb3VUlC44ax/7n8Ukksj1MGAcsCv33/HU3Xk8uj/9hWzA98ZrwobNA3hEFwXssunwsLUemNqtuYgBqkNGmtXUX8a2sEJ15u1ZVSKCmuDqb89b9APXDgQFWfnxyJ6lsBvusxrtjKQ14Dizpdd1UqrWX3MqN9as+EWA=",
-    "citizen:US": "eBNknaXtlI3yXnigf+FQtwlUUoAEFLCMkS/SPsJftEB+9U4OW17eW63SKschz1y8Gdj9Xo6j1yO8s6xTCCvXySj1dQ5x7304EpY2OjqdZeYI3O/3eZUURJ1dZ2nK93MRQR5cCO/AlNAF/+j4NO0VDqyHeaRpVmRghv2wpOzYxQM=",
-    "email:r@gmail.com": "NLHQtWJJJeppCOY8rNAN6E+zU9IC3aHRHU9+4bRRSKxiqVvL+nqvyAkE34noLB/vhIUxDHyo2nkiAKW1CCjUExEpGv4emKw7VLdXdUby/ZYVvmoJTaQtgE7j5Npfv34bholNWtdqEfNatjleup13Wa5Yq61ZjMJYZghD9Pu7b3M=",
-    "not-citizen:PK": "IIZjIPwvY8Yud7M0oGOI1lAz3xONkYp1xEyi1Jtff+g4W26FrX/C09Y97Y4C3/3dTFW3ofEXWD2mfi8dF3/mSxAhy8mGbex1Jmwq+hygdttdE3Igz83nFVLwp2aZpteKC2OrW+yJfanypQo5XS1Nr/rvhREsORJB3dpbBJNyLno=",
-    "not-citizen:SA": "aooUgiZvjxTiLNlhpxtieE49w65r4Updcy3ZAtNchvks6th7hKwcy1c9s2mDgnYiN/jsVf/Rmf0eWH+6LLH6eSTYRAtYY1uktCTJCSiV/GyNEpEKvo8ZnwW/b+OgA5AkDjA5HUNQZy89hKSBAscgN7BppFfrp7YJ8dAeKzTHuQw="
+    "age:adult": "diAfimITn3n1EHLP+eBW2y76DcZJ2N9mKL8sFSIilPpBMgUZ68j9PihMT7xWB15QEUyEjDd5oQhMl613iIdn3Tnv3uONBRq8HU40R8muKoAPLKJegfnZPaGr69I/FCc+TJ8YUJO8DNRR0/pw9pZXH5GkphQsYFxP2ExHPdEs3c4=",
+    "citizen:US": "b6+6f0cXTTPRxecYkGynXFDJ3pEnK4xWPgiYu6/hrcY7Pyy6ouOiALIITwr/vPSlmiN3N89PSFcjhXKm7tMMbBq5v+Jwkru79YeqjDOkuYsdmC5xTy6uRtnvWt7ea3uZjSeXoKqO++6eBmZeToBCfAlApDbMr0FVbMbR7kShmgc=",
+    "email:r@gmail.com": "Aee4iEZ/VBUlQmAUoz3Z3YrdpzvgwI6RotSMaxGFni2OXR1GbKbKYJu/FnKuOGVY21Hu4EDRvBEFRGZdYhaKxFOWx/xVg1TNs/vmi/h3loN5qSDue/95uFudt74t80uGHjoIpxekZ+TEyg8gnXoAZG6/XuQqFJWjOEumfCuOGL8=",
+    "not-citizen:PK": "aemsQgQfjmBa/C9t3FSujywjuR24EcDDPyYn4trcDpCAwPzjb/In2QfsgHt99EB9N5MAPxW3rlMG5A2nAy0AKgHh4r7myEE+JaHEqaOOh3yJu7eSnfbSYtqXqeeIPyRZbQj37uUBayccg1crs8DXWBqVvcuyNFu0e1qBJxuXQ4c=",
+    "not-citizen:SA": "gIxPtXKSHHl91opFz+2+7F1qi4Uls47zzz4j8EokJ7OMRZDBZCLLDOPc8CCq7/CXYkW+iOosDjN6llhSVqXaWFiGif+6nxSrW9TBSFh7qimbboqSR29H2yPUWJc9TyfiQimdYNjG2ncIvUBGKLpffWJm5m7Z6hHTcSXrz+V9AXY="
   }
 }
 ```
@@ -59,11 +59,26 @@ unlocks:
         - d@gmail.com
 
 ```
-Keys yielded by unlock with cert
+Expected keys
+```yaml
+
+{
+  "Read": "jodV1/M38z5A1n2Wq5elPuy4i2efYgbH5Qx/5lvCs60=",
+  "Write": "ZH0Bp111W4gh4nzKYW0ZfaEt/gWK2GrkUO5CpgpUT4E="
+}
+```
+Keys yielded by unlock with certW
 ```json
 
 {
-  "Read": "OO+wzfrsMyOqJZ/fTufL7Cm7JpJFjgBNJ5tUFX+tLlI=",
-  "Write": "mJEbwHr8TxvBz4XZHbcSzlapiZZ73f/nVYfdUZ36BbM="
+  "Read": "jodV1/M38z5A1n2Wq5elPuy4i2efYgbH5Qx/5lvCs60=",
+  "Write": "ZH0Bp111W4gh4nzKYW0ZfaEt/gWK2GrkUO5CpgpUT4E="
+}
+```
+Keys yielded by unlock with certR
+```json
+
+{
+  "Read": "jodV1/M38z5A1n2Wq5elPuy4i2efYgbH5Qx/5lvCs60="
 }
 ```
