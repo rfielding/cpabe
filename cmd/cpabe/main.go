@@ -472,7 +472,11 @@ func main() {
 	fmt.Printf("\n%s\n", hex.EncodeToString(caPub1.Marshal()))
 	fmt.Printf("```\n")
 
-	fmt.Printf("Write User Cert\n```json\n")
+	fmt.Printf("Write User Cert W\n```json\n")
+	fmt.Printf("\n%s\n", AsJson(certW))
+	fmt.Printf("```\n")
+
+	fmt.Printf("Write User Cert R\n```json\n")
 	fmt.Printf("\n%s\n", AsJson(certW))
 	fmt.Printf("```\n")
 
