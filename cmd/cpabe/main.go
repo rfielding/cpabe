@@ -477,7 +477,7 @@ func main() {
 	fmt.Printf("```\n")
 
 	fmt.Printf("Write User Cert R\n```json\n")
-	fmt.Printf("\n%s\n", AsJson(certW))
+	fmt.Printf("\n%s\n", AsJson(certR))
 	fmt.Printf("```\n")
 
 	fmt.Printf("Padlock\n```yaml\n")
